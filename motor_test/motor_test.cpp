@@ -2,18 +2,6 @@
 #include <cmath>
 #include "dc_motor.h"
 
-#define M1_PWM_PIN 7
-#define M1_ENA_PIN 8
-#define M1_ENB_PIN 9
-
-#define M2_PWM_PIN 10
-#define M2_ENA_PIN 11
-#define M2_ENB_PIN 12
-
-#define M3_PWM_PIN 13
-#define M3_ENA_PIN 14
-#define M3_ENB_PIN 15
-
 DCMotor motor1(M1_ENA_PIN, M1_ENB_PIN, M1_PWM_PIN);
 DCMotor motor2(M2_ENA_PIN, M2_ENB_PIN, M2_PWM_PIN);
 DCMotor motor3(M3_ENA_PIN, M3_ENB_PIN, M3_PWM_PIN);
