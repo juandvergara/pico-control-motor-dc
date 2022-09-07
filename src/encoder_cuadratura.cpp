@@ -14,7 +14,7 @@ void encoder_callback(uint gpio, uint32_t events)
     New_Pos = gpio_get(M1_ENC_A_PIN) * 2 + gpio_get(M1_ENC_B_PIN) * 1;
     encoder0PosM1 = QEM[Old_Pos * 4 + New_Pos];
     PosEncoderM1 += encoder0PosM1;
-    printf("[%f]\n", PosEncoderM1);
+    printf("[%f]\n", PosEncoderM1*360.0/(80.0*127.7*4)); // Dientes de salida motor 18, plato receptor 72, relación 4:1
 }
 
 void encoder_setup()
