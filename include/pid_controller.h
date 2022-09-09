@@ -2,9 +2,11 @@
 // Created by pepe on 21/6/21.
 //
 
-#ifndef DIFF_DRIVE_PID_CONTROLLER_H
-#define DIFF_DRIVE_PID_CONTROLLER_H
+/*#ifndef DIFF_DRIVE_PID_CONTROLLER_H
+#define DIFF_DRIVE_PID_CONTROLLER_H*/
 #include "pico/stdlib.h"
+#include "dc_motor.h"
+#include "encoder_cuadratura.h"
 #include "cstdio"
 
 class PID {
@@ -36,4 +38,4 @@ private:
 };
 
 
-#endif //DIFF_DRIVE_PID_CONTROLLER_H
+//#endif //DIFF_DRIVE_PID_CONTROLLER_H
