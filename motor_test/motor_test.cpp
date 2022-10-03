@@ -1,10 +1,10 @@
 #include "pico/stdlib.h"
 #include <cmath>
-#include "dc_motor.h"
+#include "dc_motor_v2.h"
 
-DCMotor motor1(M1_ENA_PIN, M1_ENB_PIN, M1_PWM_PIN);
-DCMotor motor2(M2_ENA_PIN, M2_ENB_PIN, M2_PWM_PIN);
-DCMotor motor3(M3_ENA_PIN, M3_ENB_PIN, M3_PWM_PIN);
+DCMotor motor1(M1_ENA_PIN, M1_ENB_PIN);
+DCMotor motor2(M2_ENA_PIN, M2_ENB_PIN);
+DCMotor motor3(M3_ENA_PIN, M3_ENB_PIN);
 
 uint32_t millis() {
     return to_ms_since_boot(get_absolute_time());
