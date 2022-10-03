@@ -1,7 +1,7 @@
 #include "pico/stdlib.h"
 #include <cmath>
 #include <stdio.h>
-#include "dc_motor.h"
+#include "dc_motor_v2.h"
 #include "encoder.h"
 #include "pid_controller.h"
 
@@ -9,9 +9,9 @@ Encoder encoder1(M1_ENC_A_PIN, M1_ENC_B_PIN);
 Encoder encoder2(M2_ENC_A_PIN, M2_ENC_B_PIN);
 Encoder encoder3(M3_ENC_A_PIN, M3_ENC_B_PIN);
 
-DCMotor motor1(M1_ENA_PIN, M1_ENB_PIN, M1_PWM_PIN);
-DCMotor motor2(M2_ENA_PIN, M2_ENB_PIN, M2_PWM_PIN);
-DCMotor motor3(M3_ENA_PIN, M3_ENB_PIN, M3_PWM_PIN);
+DCMotor motor1(M1_ENA_PIN, M1_ENB_PIN);
+DCMotor motor2(M2_ENA_PIN, M2_ENB_PIN);
+DCMotor motor3(M3_ENA_PIN, M3_ENB_PIN);
 
 float kp1 = 5.0;
 float kd1 = 0.6;
