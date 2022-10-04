@@ -13,12 +13,12 @@ DCMotor motor1(M1_ENA_PIN, M1_ENB_PIN);
 DCMotor motor2(M2_ENA_PIN, M2_ENB_PIN);
 DCMotor motor3(M3_ENA_PIN, M3_ENB_PIN);
 
-float kp1 = 5.0;
-float kd1 = 0.6;
-float ki1 = 1.4;
+float kp1 = 15.0;
+float kd1 = 0.0;
+float ki1 = 2.5;
 float kp2 = 8.0;
-float kd2 = 0.5;
-float ki2 = 3.0;
+float kd2 = 1.0;
+float ki2 = 2.0;
 
 float joint_input1, joint_effort1, joint_setpoint1 = 0.0;
 float joint_position1, joint_position2, joint_position3;
@@ -130,7 +130,7 @@ int main()
 
     while (true)
     {
-        //printf("Introduce el setpoint en formato joint1,joint2/\n");
+        // printf("Introduce el setpoint en formato joint1,joint2/\n");
 
         input_char = getchar_timeout_us(0); // Esperar la entrada del usuario
         // printf("%c \n", input_char);
@@ -146,7 +146,7 @@ int main()
                 printf("\nreceived: %s\n", in_buffer);
                 input_char_index = 0;
                 joint1_sp = strtof(in_buffer, &char_pt1);    // Conversion string (char) to float
-                joint2_sp = strtof(char_pt1 + 1, &char_pt2);    // Conversion string (char) to float
+                joint2_sp = strtof(char_pt1 + 1, &char_pt2); // Conversion string (char) to float
                 joint3_sp = strtof(char_pt2 + 1, &char_pt3); // Add 1 to bring up the comma
                 // printf("Position to joint1: %.2f and position to joint 2: %.2f \n", joint1_sp, joint2_sp);
                 break;

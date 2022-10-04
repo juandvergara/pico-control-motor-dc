@@ -15,22 +15,8 @@ int main() {
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
     while (1) {
         gpio_put(PICO_DEFAULT_LED_PIN, 1);
-        //motor1.write(0.7);
-        motor2.write(0.7);
-        motor3.write(-0.7);
-        /*sleep_ms(1500);
-        motor1.write(0);
-        motor2.write(0);
-        motor3.write(0);
-        sleep_ms(1500);
-        motor1.write(-0.7);
-        motor2.write(-0.7);
-        motor3.write(-0.7);
-        sleep_ms(1500);
-        gpio_put(PICO_DEFAULT_LED_PIN, 0);
-        motor1.write(0);
-        motor2.write(0);
-        motor3.write(0);
-        sleep_ms(1500);*/
+        motor1.write(0.0);
+        motor2.write(0.5);
+        motor3.write(-0.5);
     }
 }

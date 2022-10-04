@@ -11,7 +11,7 @@
 #include "hardware/pwm.h"
 #include "pins.h"
 
-#define TOP 6249
+#define TOP 4999
 
 class DCMotor {
 public:
