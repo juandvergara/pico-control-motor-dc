@@ -13,20 +13,20 @@ DCMotor motor1(M1_ENA_PIN, M1_ENB_PIN);
 DCMotor motor2(M2_ENA_PIN, M2_ENB_PIN);
 DCMotor motor3(M3_ENA_PIN, M3_ENB_PIN);
 
-float kp1 = 15.0;
+float kp1 = 0.5;
 float kd1 = 0.0;
-float ki1 = 2.5;
-float kp2 = 8.0;
-float kd2 = 1.0;
-float ki2 = 2.0;
+float ki1 = 0.2;
+float kp2 = 1.0;
+float kd2 = 0.0;
+float ki2 = 0.0;
 
 float joint_input1, joint_effort1, joint_setpoint1 = 0.0;
 float joint_position1, joint_position2, joint_position3;
 float joint_input2, joint_effort2, joint_setpoint2 = 0.0;
 float joint_input3, joint_effort3, joint_setpoint3 = 0.0;
+
 uint32_t sample_time_ms = 20;
 float pid_rate;
-char user_setpoint;
 
 char in_buffer[100];
 uint16_t char_idx = 0;
@@ -46,9 +46,9 @@ void initRobot()
     motor2.write(0.0);
     motor3.write(0.0);
     // PID PID_Joint1(&joint_input1, &joint_effort1, &joint_setpoint1, kp, ki, kd, sample_time_ms);
-    PID_Joint1.set_output_limits(-90.0f, 90.0f);
-    PID_Joint2.set_output_limits(-90.0f, 90.0f);
-    PID_Joint3.set_output_limits(-90.0f, 90.0f);
+    PID_Joint1.set_output_limits(-1.0f, 1.0f);
+    PID_Joint2.set_output_limits(-1.0f, 1.0f);
+    PID_Joint3.set_output_limits(-1.0f, 1.0f);
     joint_setpoint1 = 0;
     joint_setpoint2 = 0;
     joint_setpoint3 = 0;
@@ -77,9 +77,9 @@ void updatePid(int32_t joint1_encoder_ticks, int32_t joint2_encoder_ticks, int32
     PID_Joint2.compute();
     PID_Joint3.compute();
 
-    motor1_vel = (joint_effort1 / 90);
-    motor2_vel = (joint_effort2 / 90);
-    motor3_vel = (joint_effort3 / 90);
+    motor1_vel = joint_effort1;
+    motor2_vel = joint_effort2;
+    motor3_vel = joint_effort3;
 
     motor1.write(-motor1_vel);
     motor2.write(motor2_vel);
@@ -138,12 +138,12 @@ int main()
         {
             // printf(" %c ", ch);
             gpio_put(PICO_DEFAULT_LED_PIN, 1);
-            putchar(input_char);                        // Print user input in console
+            //putchar(input_char);                        // Print user input in console
             in_buffer[input_char_index++] = input_char; // Index user input to buffer array
             if (input_char == '/')
             {
                 in_buffer[input_char_index] = 0; // end of string
-                printf("\nreceived: %s\n", in_buffer);
+                //printf("\nreceived: %s\n", in_buffer);
                 input_char_index = 0;
                 joint1_sp = strtof(in_buffer, &char_pt1);    // Conversion string (char) to float
                 joint2_sp = strtof(char_pt1 + 1, &char_pt2); // Conversion string (char) to float
@@ -160,9 +160,9 @@ int main()
         // gpio_put(LED_PIN, false);
         // printf("Entradas recibidas");
         // printf("Effort: %.3f, %.3f \n", joint_effort1, joint_effort2);
-        printf("Position1: %.3f\n", joint_position1);
-        printf("Position2: %.3f\n", joint_position2);
-        printf("Position3: %.3f\n \n", joint_position3);
+        printf("%.3f, \n", joint_position1);
+        //printf("%.3f, \n", joint_effort1);
+        printf("%.3f\n \n", joint_setpoint1);
         sleep_ms(500);
         gpio_put(PICO_DEFAULT_LED_PIN, 0);
     }
