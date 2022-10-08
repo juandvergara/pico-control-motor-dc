@@ -22,6 +22,7 @@ add_subdirectory(uart_test)
 add_subdirectory(motor_test)
 add_subdirectory(encoder_test)
 add_subdirectory(pid_motor_test)
+add_subdirectory(multicore_test)
 
 
 # include neopixel lib
