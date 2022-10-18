@@ -18,7 +18,7 @@ void core1_entry()
             printf("Hmm, that's not right on core 1!\n");
         else
         {
-            printf("Its all gone well on core 1!");
+            printf("Its all gone well on core 1!\n");
             gpio_put(LED_PIN, 1);
             sleep_ms(500);
             gpio_put(LED_PIN, 0);
@@ -38,14 +38,6 @@ int main()
 
     // Wait for it to start up
 
-    /*
-        if (g != FLAG_VALUE)
-            printf("Hmm, that's not right on core 0!\n");
-        else
-        {
-            multicore_fifo_push_blocking(FLAG_VALUE);
-            printf("It's all gone well on core 0!");
-        }*/
     while (true)
     {
         uint32_t g = multicore_fifo_pop_blocking();
@@ -55,10 +47,11 @@ int main()
         else
         {
             multicore_fifo_push_blocking(FLAG_VALUE);
-            printf("It's all gone well on core 0!");
+            printf("It's all gone well on core 0! \n");
         }
     }
 }
+
 /*
 #define GPIO_ON 1
 #define GPIO_OFF 0
