@@ -1,0 +1,7 @@
+add_executable(i2c_test_slave i2c_test_slave.cpp)
+target_link_libraries(i2c_test_slave pico_stdlib hardware_i2c)
+
+pico_enable_stdio_usb(i2c_test_slave 1)
+pico_enable_stdio_uart(i2c_test_slave 0)
+
+pico_add_extra_outputs(i2c_test_slave)
