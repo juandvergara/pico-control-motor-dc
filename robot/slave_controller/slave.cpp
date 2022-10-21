@@ -8,13 +8,13 @@
 #define ELBOW_RELATION 0.008809710258418167 // 360.0f / (80.0f * 127.7f * 4.0f)
 #define WRIST_RELATION 0.049379770992366415 // 360.0f * 23.0f / (80.0f * 65.5f * 32.0f)
 
-DCMotor elbow_motor(M0_ENA_PIN, M0_ENB_PIN);
-DCMotor wrist_left_motor(M1_ENA_PIN, M1_ENB_PIN);
-DCMotor wrist_right_motor(M2_ENA_PIN, M2_ENB_PIN);
+DCMotor elbow_motor(M3_ENA_PIN, M3_ENB_PIN);
+DCMotor wrist_left_motor(M4_ENA_PIN, M4_ENB_PIN);
+DCMotor wrist_right_motor(M5_ENA_PIN, M5_ENB_PIN);
 
-Encoder elbow_encoder(M0_ENC_A_PIN, M0_ENC_B_PIN);
-Encoder wrist_left_encoder(M1_ENC_A_PIN, M1_ENC_B_PIN);
-Encoder wrist_right_encoder(M2_ENC_A_PIN, M2_ENC_B_PIN);
+Encoder elbow_encoder(M3_ENC_A_PIN, M3_ENC_B_PIN);
+Encoder wrist_left_encoder(M4_ENC_A_PIN, M4_ENC_B_PIN);
+Encoder wrist_right_encoder(M5_ENC_A_PIN, M5_ENC_B_PIN);
 
 float kp1 = 0.5;
 float kd1 = 0.0;
