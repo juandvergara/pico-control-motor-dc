@@ -6,9 +6,9 @@
 #include "encoder.h"
 #include "pid_controller.h"
 
-#define I2C_PORT i2c1
-#define I2C_SDA_PIN 26
-#define I2C_SCL_PIN 27
+#define I2C_PORT i2c0
+#define I2C_SDA_PIN 4
+#define I2C_SCL_PIN 5
 #define LED_PIN 25
 
 #define SLIDEBASE_RELATION 0.008809710258418167 // 360.0f / (80.0f * 127.7f * 4.0f)
@@ -25,10 +25,10 @@ Encoder slidebase_encoder(M0_ENC_A_PIN, M0_ENC_B_PIN);
 Encoder base_encoder(M1_ENC_A_PIN, M1_ENC_B_PIN);
 Encoder shoulder_encoder(M2_ENC_A_PIN, M2_ENC_B_PIN);
 
-float kp1 = 0.5;
+float kp1 = 0.05;
 float kd1 = 0.0;
-float ki1 = 0.2;
-float kp2 = 1.0;
+float ki1 = 0.0;
+float kp2 = 0.05;
 float kd2 = 0.0;
 float ki2 = 0.0;
 
@@ -89,9 +89,9 @@ void updatePid(int32_t joint1_encoder_ticks, int32_t joint2_encoder_ticks, int32
     PID_base.compute();
     PID_shoulder.compute();
 
-    motor1_vel = slidebase_effort;
-    motor2_vel = base_effort;
-    motor3_vel = shoulder_effort;
+    M0_ENC_INVERTED ? motor1_vel = -slidebase_effort : motor3_vel = shoulder_effort;
+    M1_ENC_INVERTED ? motor2_vel = -base_effort : motor3_vel = shoulder_effort;
+    M2_ENC_INVERTED ? motor3_vel = -shoulder_effort : motor3_vel = shoulder_effort;
 
     slidebase_motor.write(motor1_vel);
     base_motor.write(motor2_vel);
@@ -126,9 +126,9 @@ int main()
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
     initRobot();
 
+    gpio_set_irq_enabled_with_callback(M0_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &encoders_callback);
     gpio_set_irq_enabled_with_callback(M1_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &encoders_callback);
     gpio_set_irq_enabled_with_callback(M2_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &encoders_callback);
-    gpio_set_irq_enabled_with_callback(M3_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &encoders_callback);
 
     repeating_timer_t timer;
     if (!add_repeating_timer_ms(-sample_time_ms, timerCallback, NULL, &timer))
@@ -143,10 +143,15 @@ int main()
     char *char_pt1;
     char *char_pt2;
     char *char_pt3;
+    char *char_pt4;
+    char *char_pt5;
 
     float slidebase_sp = 0.0;
     float base_sp = 0.0;
     float shoulder_sp = 0.0;
+    uint8_t elbow_sp = 0;
+    uint8_t wrist_left_sp = 0;
+    uint8_t wrist_right_sp = 0;
 
     while (true)
     {
@@ -160,9 +165,12 @@ int main()
             {
                 in_buffer[input_char_index] = 0;
                 input_char_index = 0;
-                slidebase_sp = strtof(in_buffer, &char_pt1);   // Conversion string (char) to float
-                base_sp = strtof(char_pt1 + 1, &char_pt2);     // Conversion string (char) to float
+                slidebase_sp = strtof(in_buffer, &char_pt1); // Conversion string (char) to float
+                base_sp = strtof(char_pt1 + 1, &char_pt2);
                 shoulder_sp = strtof(char_pt2 + 1, &char_pt3); // Add 1 to bring up the comma
+                elbow_sp = uint8_t(strtof(char_pt3 + 1, &char_pt4));
+                wrist_left_sp = uint8_t(strtof(char_pt4 + 1, &char_pt5));
+                wrist_right_sp = uint8_t(strtof(char_pt5 + 1, NULL));
                 break;
             }
             slidebase_setpoint = slidebase_sp;
@@ -171,7 +179,9 @@ int main()
             input_char = getchar_timeout_us(0);
             printf("\n Caracter recibido \n");
         }
-        i2c_write_blocking(I2C_PORT, SLAVE_ADDR, &target_slave, 1, false);
+        i2c_write_blocking(I2C_PORT, SLAVE_ADDR, &elbow_sp, 1, false);
+        i2c_write_blocking(I2C_PORT, SLAVE_ADDR, &wrist_left_sp, 1, false);
+        i2c_write_blocking(I2C_PORT, SLAVE_ADDR, &wrist_right_sp, 1, false);
         printf("Slide base: sp %.3f, pos: %.3f, \n", slidebase_setpoint, slidebase_position);
         printf("Base: sp %.3f, pos: %.3f, \n", base_setpoint, base_position);
         printf("Shoulder: sp %.3f, pos: %.3f\n \n", shoulder_setpoint, shoulder_position);

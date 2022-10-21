@@ -6,9 +6,9 @@
 #include "encoder.h"
 #include "pid_controller.h"
 
-#define I2C_PORT i2c0
-#define I2C_SDA_PIN 4
-#define I2C_SCL_PIN 5
+#define I2C_PORT i2c1
+#define I2C_SDA_PIN 26
+#define I2C_SCL_PIN 27
 #define LED_PIN 25
 
 #define ELBOW_RELATION 0.008809710258418167 // 360.0f / (80.0f * 127.7f * 4.0f)
@@ -24,10 +24,10 @@ Encoder elbow_encoder(M3_ENC_A_PIN, M3_ENC_B_PIN);
 Encoder wrist_left_encoder(M4_ENC_A_PIN, M4_ENC_B_PIN);
 Encoder wrist_right_encoder(M5_ENC_A_PIN, M5_ENC_B_PIN);
 
-float kp1 = 0.5;
+float kp1 = 0.05;
 float kd1 = 0.0;
-float ki1 = 0.2;
-float kp2 = 1.0;
+float ki1 = 0.0;
+float kp2 = 0.05;
 float kd2 = 0.0;
 float ki2 = 0.0;
 
@@ -88,9 +88,9 @@ void updatePid(int32_t joint1_encoder_ticks, int32_t joint2_encoder_ticks, int32
     PID_wrist_left.compute();
     PID_wrist_right.compute();
 
-    motor1_vel = elbow_effort;
-    motor2_vel = wrist_left_effort;
-    motor3_vel = wrist_right_effort;
+    M3_ENC_INVERTED ? motor1_vel = -elbow_effort : motor1_vel = elbow_effort;
+    M4_ENC_INVERTED ? motor2_vel = -wrist_left_effort : motor2_vel = wrist_left_effort;
+    M5_ENC_INVERTED ? motor3_vel = -wrist_right_effort : motor3_vel = wrist_right_effort;
 
     elbow_motor.write(motor1_vel);
     wrist_left_motor.write(motor2_vel);
@@ -126,9 +126,9 @@ int main()
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
     initRobot();
 
-    gpio_set_irq_enabled_with_callback(M1_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &encoders_callback);
-    gpio_set_irq_enabled_with_callback(M2_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &encoders_callback);
     gpio_set_irq_enabled_with_callback(M3_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &encoders_callback);
+    gpio_set_irq_enabled_with_callback(M4_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &encoders_callback);
+    gpio_set_irq_enabled_with_callback(M5_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &encoders_callback);
 
     repeating_timer_t timer;
     if (!add_repeating_timer_ms(-sample_time_ms, timerCallback, NULL, &timer))
@@ -137,18 +137,25 @@ int main()
     }
 
     uint8_t target_slave = 0;
-    float elbow_sp = 0.0;
-    float wrist_left_sp = 0.0;
-    float wrist_right_sp = 0.0;
+    uint8_t elbow_sp = 0;
+    uint8_t wrist_left_sp = 0;
+    uint8_t wrist_right_sp = 0;
 
     while (true)
     {
-        i2c_read_raw_blocking(I2C_PORT, &target_slave, 1);
+        gpio_put(PICO_DEFAULT_LED_PIN, 1);
+        i2c_read_raw_blocking(I2C_PORT, &elbow_sp, 1);
+        i2c_read_raw_blocking(I2C_PORT, &wrist_left_sp, 1);
+        i2c_read_raw_blocking(I2C_PORT, &wrist_right_sp, 1);
+
+        elbow_setpoint = elbow_sp;
+        wrist_left_setpoint = wrist_left_sp;
+        wrist_right_setpoint = -wrist_right_sp;
         // READ I2C INFO TO EACH JOINT
 
-        printf("Slide base: sp %.3f, pos: %.3f, \n", elbow_setpoint, elbow_position);
-        printf("Base: sp %.3f, pos: %.3f, \n", wrist_left_setpoint, wrist_left_position);
-        printf("Shoulder: sp %.3f, pos: %.3f\n \n", wrist_right_setpoint, wrist_right_position);
+        printf("Elbow: sp %.3f, pos: %.3f, \n", elbow_setpoint, elbow_position);
+        printf("Wrist left: sp %.3f, pos: %.3f, \n", wrist_left_setpoint, wrist_left_position);
+        printf("Wrist right: sp %.3f, pos: %.3f\n \n", wrist_right_setpoint, wrist_right_position);
         sleep_ms(500);
         gpio_put(PICO_DEFAULT_LED_PIN, 0);
     }
