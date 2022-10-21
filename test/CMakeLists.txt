@@ -1,0 +1,8 @@
+if (NOT PICO_NO_HARDWARE)
+add_subdirectory(encoder_test)
+add_subdirectory(i2c_test_master)
+add_subdirectory(i2c_test_slave)
+add_subdirectory(motor_test)
+add_subdirectory(multicore_test)
+add_subdirectory(pid_motor_test)
+endif ()
