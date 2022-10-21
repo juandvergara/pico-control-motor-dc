@@ -46,10 +46,10 @@
 #define M5_ENC_B_PIN 16
 
 #define M0_ENC_INVERTED false
-#define M1_ENC_INVERTED false
-#define M2_ENC_INVERTED false
+#define M1_ENC_INVERTED true
+#define M2_ENC_INVERTED true
 #define M3_ENC_INVERTED true
-#define M4_ENC_INVERTED true
+#define M4_ENC_INVERTED false
 #define M5_ENC_INVERTED true
 
 #endif //PICO_REMOTE_CAR_PINS_H
