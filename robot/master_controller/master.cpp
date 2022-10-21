@@ -1,13 +1,21 @@
-#include "pico/stdlib.h"
 #include <cmath>
 #include <stdio.h>
+#include "pico/stdlib.h"
+#include "hardware/i2c.h"
 #include "dc_motor_v2.h"
 #include "encoder.h"
 #include "pid_controller.h"
 
+#define I2C_PORT i2c1
+#define I2C_SDA_PIN 26
+#define I2C_SCL_PIN 27
+#define LED_PIN 25
+
 #define SLIDEBASE_RELATION 0.008809710258418167 // 360.0f / (80.0f * 127.7f * 4.0f)
 #define BASE_RELATION 0.049379770992366415      // 360.0f * 23.0f / (80.0f * 65.5f * 32.0f)
 #define SHOULDER_RELATION 0.049379770992366415  // 360.0f * 23.0f / (80.0f * 65.5f * 32.0f)
+
+static int SLAVE_ADDR = 0x15;
 
 DCMotor slidebase_motor(M0_ENA_PIN, M0_ENB_PIN);
 DCMotor base_motor(M1_ENA_PIN, M1_ENB_PIN);
@@ -106,7 +114,14 @@ void encoders_callback(uint gpio, uint32_t events)
 int main()
 {
     stdio_init_all();
-    printf("PID Motor test");
+    printf("Master control");
+
+    i2c_init(I2C_PORT, 100 * 1000);
+    gpio_set_function(I2C_SDA_PIN, GPIO_FUNC_I2C);
+    gpio_set_function(I2C_SCL_PIN, GPIO_FUNC_I2C);
+    gpio_pull_up(I2C_SDA_PIN);
+    gpio_pull_up(I2C_SCL_PIN);
+
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
     initRobot();
@@ -121,6 +136,7 @@ int main()
         printf("Failure by not set timer!! \n");
     }
 
+    uint8_t target_slave = 0;
     char in_buffer[100];
     int input_char;
     int input_char_index;
@@ -155,6 +171,7 @@ int main()
             input_char = getchar_timeout_us(0);
             printf("\n Caracter recibido \n");
         }
+        i2c_write_blocking(I2C_PORT, SLAVE_ADDR, &target_slave, 1, false);
         printf("Slide base: sp %.3f, pos: %.3f, \n", slidebase_setpoint, slidebase_position);
         printf("Base: sp %.3f, pos: %.3f, \n", base_setpoint, base_position);
         printf("Shoulder: sp %.3f, pos: %.3f\n \n", shoulder_setpoint, shoulder_position);

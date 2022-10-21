@@ -1,12 +1,20 @@
-#include "pico/stdlib.h"
 #include <cmath>
 #include <stdio.h>
+#include "pico/stdlib.h"
+#include "hardware/i2c.h"
 #include "dc_motor_v2.h"
 #include "encoder.h"
 #include "pid_controller.h"
 
+#define I2C_PORT i2c0
+#define I2C_SDA_PIN 4
+#define I2C_SCL_PIN 5
+#define LED_PIN 25
+
 #define ELBOW_RELATION 0.008809710258418167 // 360.0f / (80.0f * 127.7f * 4.0f)
 #define WRIST_RELATION 0.049379770992366415 // 360.0f * 23.0f / (80.0f * 65.5f * 32.0f)
+
+static int SLAVE_ADDR = 0x15;
 
 DCMotor elbow_motor(M3_ENA_PIN, M3_ENB_PIN);
 DCMotor wrist_left_motor(M4_ENA_PIN, M4_ENB_PIN);
@@ -105,7 +113,15 @@ void encoders_callback(uint gpio, uint32_t events)
 int main()
 {
     stdio_init_all();
-    printf("PID Motor test");
+    printf("Slave control");
+
+    i2c_init(I2C_PORT, 100 * 1000);
+    i2c_set_slave_mode(I2C_PORT, true, SLAVE_ADDR);
+    gpio_set_function(I2C_SDA_PIN, GPIO_FUNC_I2C);
+    gpio_set_function(I2C_SCL_PIN, GPIO_FUNC_I2C);
+    gpio_pull_up(I2C_SDA_PIN);
+    gpio_pull_up(I2C_SCL_PIN);
+
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
     initRobot();
@@ -120,40 +136,16 @@ int main()
         printf("Failure by not set timer!! \n");
     }
 
-    char in_buffer[100];
-    int input_char;
-    int input_char_index;
-    char *char_pt1;
-    char *char_pt2;
-    char *char_pt3;
-
+    uint8_t target_slave = 0;
     float elbow_sp = 0.0;
     float wrist_left_sp = 0.0;
     float wrist_right_sp = 0.0;
 
     while (true)
     {
+        i2c_read_raw_blocking(I2C_PORT, &target_slave, 1);
+        // READ I2C INFO TO EACH JOINT
 
-        input_char = getchar_timeout_us(0);
-        while (input_char != PICO_ERROR_TIMEOUT)
-        {
-            gpio_put(PICO_DEFAULT_LED_PIN, 1);          // Print user input in console
-            in_buffer[input_char_index++] = input_char; // Index user input to buffer array
-            if (input_char == '/')
-            {
-                in_buffer[input_char_index] = 0;
-                input_char_index = 0;
-                elbow_sp = strtof(in_buffer, &char_pt1);   // Conversion string (char) to float
-                wrist_left_sp = strtof(char_pt1 + 1, &char_pt2);     // Conversion string (char) to float
-                wrist_right_sp = strtof(char_pt2 + 1, &char_pt3); // Add 1 to bring up the comma
-                break;
-            }
-            elbow_setpoint = elbow_sp;
-            wrist_left_setpoint = wrist_left_sp;
-            wrist_right_setpoint = wrist_right_sp;
-            input_char = getchar_timeout_us(0);
-            printf("\n Caracter recibido \n");
-        }
         printf("Slide base: sp %.3f, pos: %.3f, \n", elbow_setpoint, elbow_position);
         printf("Base: sp %.3f, pos: %.3f, \n", wrist_left_setpoint, wrist_left_position);
         printf("Shoulder: sp %.3f, pos: %.3f\n \n", wrist_right_setpoint, wrist_right_position);
