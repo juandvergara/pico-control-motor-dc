@@ -25,12 +25,8 @@ Encoder slidebase_encoder(M0_ENC_A_PIN, M0_ENC_B_PIN);
 Encoder base_encoder(M1_ENC_A_PIN, M1_ENC_B_PIN);
 Encoder shoulder_encoder(M2_ENC_A_PIN, M2_ENC_B_PIN);
 
-float kp1 = 0.05;
-float kd1 = 0.0;
-float ki1 = 0.0;
-float kp2 = 0.05;
-float kd2 = 0.0;
-float ki2 = 0.0;
+float PID_param1[3] = {0.05, 0.0, 0.0};
+float PID_param2[3] = {0.05, 0.0, 0.0};
 
 float slidebase_input, slidebase_effort, slidebase_setpoint = 0.0;
 float base_input, base_effort, base_setpoint = 0.0;
@@ -41,9 +37,9 @@ float slidebase_position, base_position, shoulder_position;
 uint32_t sample_time_ms = 20;
 float pid_rate;
 
-PID PID_slidebase(&slidebase_input, &slidebase_effort, &slidebase_setpoint, kp1, ki1, kd1, sample_time_ms);
-PID PID_base(&base_input, &base_effort, &base_setpoint, kp2, ki2, kd2, sample_time_ms);
-PID PID_shoulder(&shoulder_input, &shoulder_effort, &shoulder_setpoint, kp2, ki2, kd2, sample_time_ms);
+PID PID_slidebase(&slidebase_input, &slidebase_effort, &slidebase_setpoint, PID_param1[0], PID_param1[1], PID_param1[2], sample_time_ms);
+PID PID_base(&base_input, &base_effort, &base_setpoint, PID_param1[0], PID_param1[1], PID_param1[2], sample_time_ms);
+PID PID_shoulder(&shoulder_input, &shoulder_effort, &shoulder_setpoint, PID_param1[0], PID_param1[1], PID_param1[2], sample_time_ms);
 
 uint32_t millis()
 {
