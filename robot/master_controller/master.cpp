@@ -179,6 +179,10 @@ int main()
             input_char = getchar_timeout_us(0);
             printf("\n Caracter recibido \n");
         }
+        /*
+            snprintf ( buffer, 100, "%.6f, %.6f", joint1_pos, joint2_pos); // Add option to send float to char array I2C 
+            https://cplusplus.com/reference/cstdio/snprintf/
+        */
         i2c_write_blocking(I2C_PORT, SLAVE_ADDR, &elbow_sp, 1, false);
         i2c_write_blocking(I2C_PORT, SLAVE_ADDR, &wrist_left_sp, 1, false);
         i2c_write_blocking(I2C_PORT, SLAVE_ADDR, &wrist_right_sp, 1, false);
