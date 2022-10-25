@@ -136,17 +136,23 @@ int main()
         printf("Failure by not set timer!! \n");
     }
 
-    uint8_t target_slave = 0;
-    uint8_t elbow_sp = 0;
-    uint8_t wrist_left_sp = 0;
-    uint8_t wrist_right_sp = 0;
+    uint8_t target_slave1[4];
+    uint8_t target_slave2[4];
+    uint8_t target_slave3[4];
+    float elbow_sp = 0;
+    float wrist_left_sp = 0;
+    float wrist_right_sp = 0;
 
     while (true)
     {
         gpio_put(PICO_DEFAULT_LED_PIN, 1);
-        i2c_read_raw_blocking(I2C_PORT, &elbow_sp, 1);
-        i2c_read_raw_blocking(I2C_PORT, &wrist_left_sp, 1);
-        i2c_read_raw_blocking(I2C_PORT, &wrist_right_sp, 1);
+        i2c_read_raw_blocking(I2C_PORT, target_slave1, 4);
+        i2c_read_raw_blocking(I2C_PORT, target_slave2, 4);
+        i2c_read_raw_blocking(I2C_PORT, target_slave3, 4);
+
+        elbow_sp = *(float *)&target_slave1;
+        wrist_left_sp = *(float *)&target_slave2;
+        wrist_right_sp = *(float *)&target_slave3;
 
         elbow_setpoint = elbow_sp;
         wrist_left_setpoint = wrist_left_sp;

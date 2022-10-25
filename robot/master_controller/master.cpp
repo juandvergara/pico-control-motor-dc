@@ -145,13 +145,12 @@ int main()
     float slidebase_sp = 0.0;
     float base_sp = 0.0;
     float shoulder_sp = 0.0;
-    uint8_t elbow_sp = 0;
-    uint8_t wrist_left_sp = 0;
-    uint8_t wrist_right_sp = 0;
+    float elbow_sp = 0;
+    float wrist_left_sp = 0;
+    float wrist_right_sp = 0;
 
     while (true)
     {
-
         input_char = getchar_timeout_us(0);
         while (input_char != PICO_ERROR_TIMEOUT)
         {
@@ -164,9 +163,9 @@ int main()
                 slidebase_sp = strtof(in_buffer, &char_pt1); // Conversion string (char) to float
                 base_sp = strtof(char_pt1 + 1, &char_pt2);
                 shoulder_sp = strtof(char_pt2 + 1, &char_pt3); // Add 1 to bring up the comma
-                elbow_sp = uint8_t(strtof(char_pt3 + 1, &char_pt4));
-                wrist_left_sp = uint8_t(strtof(char_pt4 + 1, &char_pt5));
-                wrist_right_sp = uint8_t(strtof(char_pt5 + 1, NULL));
+                elbow_sp = strtof(char_pt3 + 1, &char_pt4);
+                wrist_left_sp = strtof(char_pt4 + 1, &char_pt5);
+                wrist_right_sp = strtof(char_pt5 + 1, NULL);
                 break;
             }
             slidebase_setpoint = slidebase_sp;
@@ -175,13 +174,18 @@ int main()
             input_char = getchar_timeout_us(0);
             printf("\n Caracter recibido \n");
         }
-        /*
-            snprintf ( buffer, 100, "%.6f, %.6f", joint1_pos, joint2_pos); // Add option to send float to char array I2C 
-            https://cplusplus.com/reference/cstdio/snprintf/
-        */
-        i2c_write_blocking(I2C_PORT, SLAVE_ADDR, &elbow_sp, 1, false);
-        i2c_write_blocking(I2C_PORT, SLAVE_ADDR, &wrist_left_sp, 1, false);
-        i2c_write_blocking(I2C_PORT, SLAVE_ADDR, &wrist_right_sp, 1, false);
+
+        uint8_t *target_slave1;
+        target_slave1 = (uint8_t *)(&elbow_sp);
+        uint8_t *target_slave2;
+        target_slave2 = (uint8_t *)(&wrist_left_sp);
+        uint8_t *target_slave3;
+        target_slave3 = (uint8_t *)(&wrist_right_sp);
+
+        i2c_write_blocking(I2C_PORT, SLAVE_ADDR, target_slave1, 4, false);
+        i2c_write_blocking(I2C_PORT, SLAVE_ADDR, target_slave2, 4, false);
+        i2c_write_blocking(I2C_PORT, SLAVE_ADDR, target_slave3, 4, false);
+
         printf("Slide base: sp %.3f, pos: %.3f, \n", slidebase_setpoint, slidebase_position);
         printf("Base: sp %.3f, pos: %.3f, \n", base_setpoint, base_position);
         printf("Shoulder: sp %.3f, pos: %.3f\n \n", shoulder_setpoint, shoulder_position);
