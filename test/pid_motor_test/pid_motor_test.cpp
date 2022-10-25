@@ -13,12 +13,12 @@ DCMotor motor3(M3_ENA_PIN, M3_ENB_PIN);
 DCMotor motor4(M4_ENA_PIN, M4_ENB_PIN);
 DCMotor motor5(M5_ENA_PIN, M5_ENB_PIN);
 
-float kp1 = 0.05;
-float kd1 = 0.0;
-float ki1 = 0.0;
-float kp2 = 0.05;
-float kd2 = 0.0;
-float ki2 = 0.0;
+float kp1 = 0.060;
+float kd1 = 0.0007;
+float ki1 = 0.0060;
+float kp2 = 0.020;
+float kd2 = 0.0001;
+float ki2 = 0.0015;
 
 float joint_input1, joint_effort1, joint_setpoint1 = 0.0;
 float joint_position1, joint_position2, joint_position3;
@@ -28,7 +28,7 @@ float joint_input3, joint_effort3, joint_setpoint3 = 0.0;
 uint32_t sample_time_ms = 20;
 float pid_rate;
 
-char in_buffer[100];
+char in_buffer[500];
 uint16_t char_idx = 0;
 
 PID PID_Joint1(&joint_input1, &joint_effort1, &joint_setpoint1, kp1, ki1, kd1, sample_time_ms);
@@ -138,7 +138,7 @@ int main()
         {
             // printf(" %c ", ch);
             gpio_put(PICO_DEFAULT_LED_PIN, 1);
-            //putchar(input_char);                        // Print user input in console
+            putchar(input_char);                        // Print user input in console
             in_buffer[input_char_index++] = input_char; // Index user input to buffer array
             if (input_char == '/')
             {
@@ -155,15 +155,17 @@ int main()
             joint_setpoint2 = joint2_sp;
             joint_setpoint3 = -joint3_sp;
             input_char = getchar_timeout_us(0);
-            printf("\n Caracter recibido \n");
+            //printf("\n Caracter recibido \n");
         }
         // gpio_put(LED_PIN, false);
         // printf("Entradas recibidas");
-        printf("Effort: J1: %.3f, J2: %.3f, J3: %.3f \n", joint_effort1, joint_effort2, joint_effort3);
-        printf("Position: J1: %.3f, J2: %.3f, J3: %.3f \n", joint_position1, joint_position2, joint_position3);
-        //printf("%.3f, \n", joint_effort1);
-        //printf("%.3f\n \n", joint_setpoint1);
-        sleep_ms(500);
+        //printf("Effort: J1: %.3f, J2: %.3f, J3: %.3f \n", joint_effort1, joint_effort2, joint_effort3);
+        //printf("Position: J1: %.3f, J2: %.3f \n", joint_position1, joint_position2);
+        //printf("Ef1: %.4f, \n", joint_effort1);
+        printf("Pos1: %.4f\n \n", joint_position1);/*/
+        printf("Ef2: %.4f, \n", joint_effort2);
+        printf("Pos2: %.4f\n \n", joint_position2);*/
+        sleep_ms(200);
         gpio_put(PICO_DEFAULT_LED_PIN, 0);
     }
 }
