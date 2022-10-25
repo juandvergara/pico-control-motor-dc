@@ -3,20 +3,20 @@
 #include <stdio.h>
 #include "dc_motor_v2.h"
 #include "encoder.h"
-#include "pid_controller.h"
+#include "pid_filter.h"
 
-Encoder encoder1(M1_ENC_A_PIN, M1_ENC_B_PIN);
-Encoder encoder2(M2_ENC_A_PIN, M2_ENC_B_PIN);
 Encoder encoder3(M3_ENC_A_PIN, M3_ENC_B_PIN);
+Encoder encoder4(M4_ENC_A_PIN, M4_ENC_B_PIN);
+Encoder encoder5(M5_ENC_A_PIN, M5_ENC_B_PIN);
 
-DCMotor motor1(M1_ENA_PIN, M1_ENB_PIN);
-DCMotor motor2(M2_ENA_PIN, M2_ENB_PIN);
 DCMotor motor3(M3_ENA_PIN, M3_ENB_PIN);
+DCMotor motor4(M4_ENA_PIN, M4_ENB_PIN);
+DCMotor motor5(M5_ENA_PIN, M5_ENB_PIN);
 
-float kp1 = 0.5;
+float kp1 = 0.05;
 float kd1 = 0.0;
-float ki1 = 0.2;
-float kp2 = 1.0;
+float ki1 = 0.0;
+float kp2 = 0.05;
 float kd2 = 0.0;
 float ki2 = 0.0;
 
@@ -42,9 +42,9 @@ uint32_t millis()
 
 void initRobot()
 {
-    motor1.write(0.0);
-    motor2.write(0.0);
     motor3.write(0.0);
+    motor4.write(0.0);
+    motor5.write(0.0);
     // PID PID_Joint1(&joint_input1, &joint_effort1, &joint_setpoint1, kp, ki, kd, sample_time_ms);
     PID_Joint1.set_output_limits(-1.0f, 1.0f);
     PID_Joint2.set_output_limits(-1.0f, 1.0f);
@@ -81,23 +81,23 @@ void updatePid(int32_t joint1_encoder_ticks, int32_t joint2_encoder_ticks, int32
     motor2_vel = joint_effort2;
     motor3_vel = joint_effort3;
 
-    motor1.write(-motor1_vel);
-    motor2.write(motor2_vel);
-    motor3.write(-motor3_vel);
+    motor3.write(-motor1_vel);
+    motor4.write(motor2_vel);
+    motor5.write(-motor3_vel);
     // printf("Motor entregado %.2f \n", motor_vel);
 }
 
 bool timerCallback(repeating_timer_t *rt)
 {
-    updatePid(int32_t(encoder1.encoder_pos), int32_t(encoder2.encoder_pos), int32_t(encoder3.encoder_pos));
+    updatePid(int32_t(encoder3.encoder_pos), int32_t(encoder4.encoder_pos), int32_t(encoder5.encoder_pos));
     return true;
 }
 
 void encoders_callback(uint gpio, uint32_t events)
 {
-    encoder1.readPosition();
-    encoder2.readPosition();
     encoder3.readPosition();
+    encoder4.readPosition();
+    encoder5.readPosition();
 }
 
 int main()
@@ -108,9 +108,9 @@ int main()
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
     initRobot();
 
-    gpio_set_irq_enabled_with_callback(M1_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &encoders_callback);
-    gpio_set_irq_enabled_with_callback(M2_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &encoders_callback);
     gpio_set_irq_enabled_with_callback(M3_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &encoders_callback);
+    gpio_set_irq_enabled_with_callback(M4_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &encoders_callback);
+    gpio_set_irq_enabled_with_callback(M5_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &encoders_callback);
 
     repeating_timer_t timer;
     if (!add_repeating_timer_ms(-sample_time_ms, timerCallback, NULL, &timer))
@@ -159,10 +159,10 @@ int main()
         }
         // gpio_put(LED_PIN, false);
         // printf("Entradas recibidas");
-        // printf("Effort: %.3f, %.3f \n", joint_effort1, joint_effort2);
-        printf("%.3f, \n", joint_position1);
+        printf("Effort: J1: %.3f, J2: %.3f, J3: %.3f \n", joint_effort1, joint_effort2, joint_effort3);
+        printf("Position: J1: %.3f, J2: %.3f, J3: %.3f \n", joint_position1, joint_position2, joint_position3);
         //printf("%.3f, \n", joint_effort1);
-        printf("%.3f\n \n", joint_setpoint1);
+        //printf("%.3f\n \n", joint_setpoint1);
         sleep_ms(500);
         gpio_put(PICO_DEFAULT_LED_PIN, 0);
     }
