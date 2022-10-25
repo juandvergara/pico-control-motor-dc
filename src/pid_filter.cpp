@@ -9,6 +9,9 @@ PID::PID(float *input, float *output, float *setpoint, float kp, float ki, float
 {
     set_output_limits(-1.0f, 1.0f);
     set_gains(kp, ki, kd);
+    this->_last_err2 = 0.0;
+    this->_last_err = 0.0;
+    this->_last_output = 0.0;
 }
 
 void PID::set_sample_time(uint32_t new_sample_time_ms)
@@ -56,7 +59,7 @@ void PID::compute(void)
     float input = *_my_input;
     float error = *_my_setpoint - input;
 
-    float output = _last_output + (_kp + _ki + _kd) * error - (_kp + 2 * _kd) * _last_err + _kd * _last_err2;
+    float output = _last_output + (_kp + _ki + _kd) * error - (_kp + 2.0 * _kd) * _last_err + _kd * _last_err2;
 
     if (output > _out_max)
         output = _out_max;
