@@ -5,6 +5,8 @@
 #include "encoder.h"
 #include "pid_filter.h"
 
+#define PI 3.14159265359f
+
 Encoder encoder3(M3_ENC_A_PIN, M3_ENC_B_PIN);
 Encoder encoder4(M4_ENC_A_PIN, M4_ENC_B_PIN);
 Encoder encoder5(M5_ENC_A_PIN, M5_ENC_B_PIN);
@@ -30,6 +32,8 @@ float pid_rate;
 
 char in_buffer[500];
 uint16_t char_idx = 0;
+
+float theta = 1.0 / (2.0 * PI * 10.0);
 
 PID PID_Joint1(&joint_input1, &joint_effort1, &joint_setpoint1, kp1, ki1, kd1, sample_time_ms);
 PID PID_Joint2(&joint_input2, &joint_effort2, &joint_setpoint2, kp2, ki2, kd2, sample_time_ms);
