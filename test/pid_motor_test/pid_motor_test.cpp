@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include "dc_motor_v2.h"
 #include "encoder.h"
-#include "pid_filter.h"
+#include "pi_controller.h"
 
 #define PI 3.14159265359f
 
@@ -15,19 +15,19 @@ DCMotor motor3(M3_ENA_PIN, M3_ENB_PIN);
 DCMotor motor4(M4_ENA_PIN, M4_ENB_PIN);
 DCMotor motor5(M5_ENA_PIN, M5_ENB_PIN);
 
-float kp1 = 0.060;
-float kd1 = 0.0007;
-float ki1 = 0.0060;
-float kp2 = 0.020;
-float kd2 = 0.0001;
-float ki2 = 0.0015;
+float kp1 = 2.0;
+float kd1 = 1.0;
+float ki1 = 0.5;
+float kp2 = 0.75;
+float kd2 = 1.0;
+float ki2 = 0.15;
 
 float joint_input1, joint_effort1, joint_setpoint1 = 0.0;
 float joint_position1, joint_position2, joint_position3;
 float joint_input2, joint_effort2, joint_setpoint2 = 0.0;
 float joint_input3, joint_effort3, joint_setpoint3 = 0.0;
 
-uint32_t sample_time_ms = 20;
+uint32_t sample_time_ms = 10;
 float pid_rate;
 
 char in_buffer[500];
@@ -166,10 +166,11 @@ int main()
         //printf("Effort: J1: %.3f, J2: %.3f, J3: %.3f \n", joint_effort1, joint_effort2, joint_effort3);
         //printf("Position: J1: %.3f, J2: %.3f \n", joint_position1, joint_position2);
         //printf("Ef1: %.4f, \n", joint_effort1);
-        printf("Pos1: %.4f\n \n", joint_position1);/*/
-        printf("Ef2: %.4f, \n", joint_effort2);
+        printf("%.4f, ", joint_position1);
+        printf("%.4f, ", joint_position2);
+        printf("%.4f \n", joint_position3);/*
         printf("Pos2: %.4f\n \n", joint_position2);*/
-        sleep_ms(200);
+        sleep_ms(10);
         gpio_put(PICO_DEFAULT_LED_PIN, 0);
     }
 }
