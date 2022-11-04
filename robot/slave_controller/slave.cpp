@@ -4,7 +4,7 @@
 #include "hardware/i2c.h"
 #include "dc_motor_v2.h"
 #include "encoder.h"
-#include "pid_controller.h"
+#include "pi_controller.h"
 
 #define I2C_PORT i2c1
 #define I2C_SDA_PIN 26
@@ -24,12 +24,12 @@ Encoder elbow_encoder(M3_ENC_A_PIN, M3_ENC_B_PIN);
 Encoder wrist_left_encoder(M4_ENC_A_PIN, M4_ENC_B_PIN);
 Encoder wrist_right_encoder(M5_ENC_A_PIN, M5_ENC_B_PIN);
 
-float kp1 = 0.05;
-float kd1 = 0.0;
-float ki1 = 0.0;
-float kp2 = 0.05;
-float kd2 = 0.0;
-float ki2 = 0.0;
+float kp1 = 0.50;
+float kd1 = 1.0;
+float ki1 = 0.25;
+float kp2 = 0.50;
+float kd2 = 1.0;
+float ki2 = 0.25;
 
 float elbow_input, elbow_effort, elbow_setpoint = 0.0;
 float wrist_left_input, wrist_left_effort, wrist_left_setpoint = 0.0;
@@ -37,7 +37,7 @@ float wrist_right_input, wrist_right_effort, wrist_right_setpoint = 0.0;
 
 float elbow_position, wrist_left_position, wrist_right_position;
 
-uint32_t sample_time_ms = 20;
+uint32_t sample_time_ms = 10;
 float pid_rate;
 
 PID PID_elbow(&elbow_input, &elbow_effort, &elbow_setpoint, kp1, ki1, kd1, sample_time_ms);
@@ -154,9 +154,9 @@ int main()
         wrist_left_sp = *(float *)&target_slave2;
         wrist_right_sp = *(float *)&target_slave3;
 
-        elbow_setpoint = elbow_sp;
-        wrist_left_setpoint = wrist_left_sp;
-        wrist_right_setpoint = -wrist_right_sp;
+        elbow_setpoint = round(elbow_sp / ELBOW_RELATION) * ELBOW_RELATION;
+        wrist_left_setpoint = round(wrist_left_sp / WRIST_RELATION) * WRIST_RELATION;
+        wrist_right_setpoint = -round(wrist_right_sp / WRIST_RELATION) * WRIST_RELATION;
         // READ I2C INFO TO EACH JOINT
 
         printf("Elbow: sp %.3f, pos: %.3f, \n", elbow_setpoint, elbow_position);
