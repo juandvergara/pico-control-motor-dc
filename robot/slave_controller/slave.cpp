@@ -12,7 +12,7 @@
 #define LED_PIN 25
 
 #define ELBOW_RELATION 0.008809710258418167 // 360.0f / (80.0f * 127.7f * 4.0f)
-#define WRIST_RELATION 0.049379770992366415 // 360.0f * 23.0f / (80.0f * 65.5f * 32.0f)
+#define WRIST_RELATION 0.03435114503816794  // 360.0f * 23.0f / (80.0f * 65.5f * 32.0f) Cambiado por 360.0f / (80.0f * 65.5f * 2.0f) 
 
 static int SLAVE_ADDR = 0x15;
 
