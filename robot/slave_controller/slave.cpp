@@ -12,7 +12,7 @@
 #define LED_PIN 25
 
 #define ELBOW_RELATION 0.008809710258418167 // 360.0f / (80.0f * 127.7f * 4.0f)
-#define WRIST_RELATION 0.03435114503816794  // 360.0f * 23.0f / (80.0f * 65.5f * 32.0f) Cambiado por 360.0f / (80.0f * 65.5f * 2.0f) 
+#define WRIST_RELATION 0.03435114503816794  // 360.0f * 23.0f / (80.0f * 65.5f * 32.0f) Cambiado por 360.0f / (80.0f * 65.5f * 2.0f)
 
 static int SLAVE_ADDR = 0x15;
 
@@ -136,9 +136,17 @@ int main()
         printf("Failure by not set timer!! \n");
     }
 
-    uint8_t target_slave1[4];
-    uint8_t target_slave2[4];
-    uint8_t target_slave3[4];
+    uint8_t target_slave1[4] = {0, 0, 0, 0};
+    uint8_t target_slave2[4] = {0, 0, 0, 0};
+    uint8_t target_slave3[4] = {0, 0, 0, 0};
+    uint8_t status_slidebase[4] = {0, 0, 0, 0};
+    uint8_t status_base[4] = {0, 0, 0, 0};
+    uint8_t status_shoulder[4] = {0, 0, 0, 0};
+
+    float slidebase_position = 0;
+    float base_position = 0;
+    float shoulder_position = 0;
+
     float elbow_sp = 0;
     float wrist_left_sp = 0;
     float wrist_right_sp = 0;
@@ -149,20 +157,31 @@ int main()
         i2c_read_raw_blocking(I2C_PORT, target_slave1, 4);
         i2c_read_raw_blocking(I2C_PORT, target_slave2, 4);
         i2c_read_raw_blocking(I2C_PORT, target_slave3, 4);
+        i2c_read_raw_blocking(I2C_PORT, status_slidebase, 4);
+        i2c_read_raw_blocking(I2C_PORT, status_base, 4);
+        i2c_read_raw_blocking(I2C_PORT, status_shoulder, 4);
 
         elbow_sp = *(float *)&target_slave1;
         wrist_left_sp = *(float *)&target_slave2;
         wrist_right_sp = *(float *)&target_slave3;
+        slidebase_position = *(float *)&status_slidebase;
+        base_position = *(float *)&status_base;
+        shoulder_position = *(float *)&status_shoulder;
 
         elbow_setpoint = round(elbow_sp / ELBOW_RELATION) * ELBOW_RELATION;
         wrist_left_setpoint = round(wrist_left_sp / WRIST_RELATION) * WRIST_RELATION;
         wrist_right_setpoint = -round(wrist_right_sp / WRIST_RELATION) * WRIST_RELATION;
         // READ I2C INFO TO EACH JOINT
 
+        /*printf("Slide base: pos: %.3f, \n", slidebase_position);
+        printf("Base: pos: %.3f, \n", base_position);
+        printf("Shoulder: pos: %.3f \n", shoulder_position);
         printf("Elbow: sp %.3f, pos: %.3f, \n", elbow_setpoint, elbow_position);
         printf("Wrist left: sp %.3f, pos: %.3f, \n", wrist_left_setpoint, wrist_left_position);
-        printf("Wrist right: sp %.3f, pos: %.3f\n \n", wrist_right_setpoint, wrist_right_position);
-        sleep_ms(500);
+        printf("Wrist right: sp %.3f, pos: %.3f\n \n", wrist_right_setpoint, wrist_right_position);*/
+        printf("%.3f,%.3f,%.3f,", slidebase_position, base_position, shoulder_position);
+        printf("%.3f,%.3f,%.3f/\n", elbow_position, wrist_left_position, wrist_right_position);
+        sleep_ms(10);
         gpio_put(PICO_DEFAULT_LED_PIN, 0);
     }
 }

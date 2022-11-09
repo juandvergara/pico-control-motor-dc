@@ -155,6 +155,7 @@ int main()
         while (input_char != PICO_ERROR_TIMEOUT)
         {
             gpio_put(PICO_DEFAULT_LED_PIN, 1);          // Print user input in console
+            putchar(input_char);
             in_buffer[input_char_index++] = input_char; // Index user input to buffer array
             if (input_char == '/')
             {
@@ -172,7 +173,6 @@ int main()
             base_setpoint = round(base_sp / BASE_RELATION) * BASE_RELATION;
             shoulder_setpoint = round(shoulder_sp / SHOULDER_RELATION) * SHOULDER_RELATION;
             input_char = getchar_timeout_us(0);
-            printf("\n Caracter recibido \n");
         }
 
         uint8_t *target_slave1;
@@ -182,14 +182,23 @@ int main()
         uint8_t *target_slave3;
         target_slave3 = (uint8_t *)(&wrist_right_sp);
 
+        uint8_t *status_slidebase;
+        status_slidebase = (uint8_t *)(&slidebase_position);
+        uint8_t *status_base;
+        status_base = (uint8_t *)(&base_position);
+        uint8_t *status_shoulder;
+        status_shoulder = (uint8_t *)(&shoulder_position);
+
         i2c_write_blocking(I2C_PORT, SLAVE_ADDR, target_slave1, 4, false);
         i2c_write_blocking(I2C_PORT, SLAVE_ADDR, target_slave2, 4, false);
         i2c_write_blocking(I2C_PORT, SLAVE_ADDR, target_slave3, 4, false);
+        i2c_write_blocking(I2C_PORT, SLAVE_ADDR, status_slidebase, 4, false);
+        i2c_write_blocking(I2C_PORT, SLAVE_ADDR, status_base, 4, false);
+        i2c_write_blocking(I2C_PORT, SLAVE_ADDR, status_shoulder, 4, false);
 
-        printf("Slide base: sp %.3f, pos: %.3f, \n", slidebase_setpoint, slidebase_position);
+        /*printf("Slide base: sp %.3f, pos: %.3f, \n", slidebase_setpoint, slidebase_position);
         printf("Base: sp %.3f, pos: %.3f, \n", base_setpoint, base_position);
-        printf("Shoulder: sp %.3f, pos: %.3f\n \n", shoulder_setpoint, shoulder_position);
-        sleep_ms(500);
+        printf("Shoulder: sp %.3f, pos: %.3f\n \n", shoulder_setpoint, shoulder_position);*/
         gpio_put(PICO_DEFAULT_LED_PIN, 0);
     }
 }
