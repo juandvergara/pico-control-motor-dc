@@ -16,6 +16,7 @@ int main()
     stdio_init_all();
 
     i2c_init(I2C_PORT, 100 * 1000);
+    i2c_set_slave_mode(I2C_PORT, true, SLAVE_ADDR);
     gpio_set_function(I2C_SDA_PIN, GPIO_FUNC_I2C);
     gpio_set_function(I2C_SCL_PIN, GPIO_FUNC_I2C);
     gpio_pull_up(I2C_SDA_PIN);
@@ -55,7 +56,7 @@ int main()
         }
         sleep_ms(500);
         gpio_put(PICO_DEFAULT_LED_PIN, 0);
-        i2c_write_blocking(I2C_PORT, SLAVE_ADDR, &times_led, 1, false);
+        i2c_write_raw_blocking(I2C_PORT, &times_led, 1);
         sleep_ms(5000);
         printf("Valor de veces LED %d \n", times_led);
     }

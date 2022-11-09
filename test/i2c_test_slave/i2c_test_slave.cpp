@@ -15,7 +15,7 @@ int main()
     stdio_init_all();
 
     i2c_init(I2C_PORT, 100 * 1000);
-    i2c_set_slave_mode(I2C_PORT, true, SLAVE_ADDR);
+    //i2c_set_slave_mode(I2C_PORT, true, SLAVE_ADDR);
     gpio_set_function(I2C_SDA_PIN, GPIO_FUNC_I2C);
     gpio_set_function(I2C_SCL_PIN, GPIO_FUNC_I2C);
     gpio_pull_up(I2C_SDA_PIN);
@@ -25,11 +25,15 @@ int main()
     gpio_set_dir(LED_PIN, GPIO_OUT);
 
     uint8_t times_led = 0;
+    sleep_ms(3000);
 
     while (true)
     {
-        i2c_read_raw_blocking(I2C_PORT, &times_led, 1);
-
+        //printf("Antes de leer %d \n", i2c_get_read_available(I2C_PORT));
+        //i2c_get_read_available(I2C_PORT);
+        //i2c_read_blocking_until(I2C_PORT, SLAVE_ADDR, &times_led, 1, false, 200);
+        i2c_read_blocking(I2C_PORT, SLAVE_ADDR, &times_led, 1, false);
+        printf("despues de leer %d \n", times_led);
         for (uint8_t i = 0; i < times_led; i++)
         {
             gpio_put(LED_PIN, 1);
