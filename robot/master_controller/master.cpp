@@ -199,6 +199,7 @@ int main()
         /*printf("Slide base: sp %.3f, pos: %.3f, \n", slidebase_setpoint, slidebase_position);
         printf("Base: sp %.3f, pos: %.3f, \n", base_setpoint, base_position);
         printf("Shoulder: sp %.3f, pos: %.3f\n \n", shoulder_setpoint, shoulder_position);*/
+        sleep_ms(20);
         gpio_put(PICO_DEFAULT_LED_PIN, 0);
     }
 }
