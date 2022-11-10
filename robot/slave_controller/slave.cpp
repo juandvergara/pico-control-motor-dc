@@ -179,9 +179,9 @@ int main()
         printf("Elbow: sp %.3f, pos: %.3f, \n", elbow_setpoint, elbow_position);
         printf("Wrist left: sp %.3f, pos: %.3f, \n", wrist_left_setpoint, wrist_left_position);
         printf("Wrist right: sp %.3f, pos: %.3f\n \n", wrist_right_setpoint, wrist_right_position);*/
-        printf("%.3f,%.3f,%.3f,", slidebase_position, base_position, shoulder_position);
-        printf("%.3f,%.3f,%.3f/\n", elbow_position, wrist_left_position, wrist_right_position);
-        sleep_ms(10);
+        printf("%.3f,%.3f,%.3f,%.3f,%.3f,%.3f", slidebase_position, base_position, shoulder_position, elbow_position, wrist_left_position, wrist_right_position);
+        //printf("%.3f,%.3f,%.3f/\n", elbow_position, wrist_left_position, wrist_right_position);
+        sleep_ms(20);
         gpio_put(PICO_DEFAULT_LED_PIN, 0);
     }
 }
