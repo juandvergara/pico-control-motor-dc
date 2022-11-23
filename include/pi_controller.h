@@ -1,10 +1,8 @@
 
-/*#ifndef PI_CONTROLLER_H
-#define PI_CONTROLLER_H*/
+#ifndef PI_CONTROLLER_H
+#define PI_CONTROLLER_H
 
 #include "pico/stdlib.h"
-#include "dc_motor.h"
-#include "encoder_cuadratura.h"
 #include "cstdio"
 
 class PI
@@ -33,4 +31,4 @@ private:
     float _last_output;
 };
 
-//#endif PI_CONTROLLER_H
+#endif // PI_CONTROLLER_H
