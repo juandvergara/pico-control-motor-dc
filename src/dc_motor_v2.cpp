@@ -20,22 +20,16 @@ DCMotor::DCMotor(uint enA_pin, uint enB_pin)
     pwm_set_chan_level(_slice_numB, _channelB, 0);
     pwm_set_output_polarity(_slice_numA, true, false); // Channel A inverted B normal mode
 
-    //
     pwm_set_enabled(_slice_numA, true);
     pwm_set_enabled(_slice_numB, true);
 }
 
 void DCMotor::write_int16(int16_t pwm)
 {
-    /*if(pwm < 0)
-    {
-        pwm_set_chan_level(_slice_numA, _channelA, abs(pwm));
-        pwm_set_chan_level(_slice_numB, _channelB, abs(pwm));
-    } else
-    {*/
+
     pwm_set_chan_level(_slice_numA, _channelA, pwm);
     pwm_set_chan_level(_slice_numB, _channelB, pwm);
-    //}
+
     pwm_set_enabled(_slice_numA, true);
     pwm_set_enabled(_slice_numB, true);
 }
