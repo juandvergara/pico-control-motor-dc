@@ -5,15 +5,15 @@
 #include "encoder.h"
 #include "pi_controller.h"
 
-#define PI 3.14159265359f
+#define PI_N 3.14159265359f
 
 Encoder encoder3(M3_ENC_A_PIN, M3_ENC_B_PIN);
 
 DCMotor motor3(M3_ENA_PIN, M3_ENB_PIN);
 
-float kp1 = 0.5;
-float kd1 = 1.0;
-float ki1 = 0.125;
+float kp1 = 0.2;
+float ki1 = 0.8;
+float kd1 = 0.07;
 
 float joint_input1, joint_effort1, joint_setpoint1 = 0.0;
 float joint_position1, past_joint_position1;
@@ -29,9 +29,9 @@ float pid_rate;
 char in_buffer[500];
 uint16_t char_idx = 0;
 
-float theta = 1.0 / (2.0 * PI * 10.0);
+float theta = 1.0 / (2.0 * PI_N * 10.0);
 
-PID PID_Joint1(&joint_input1, &joint_effort1, &joint_setpoint1, kp1, ki1, kd1, sample_time_ms);
+PI PI_Joint1(&joint_input1, &joint_effort1, &joint_setpoint1, kp1, ki1, sample_time_ms);
 
 uint32_t millis()
 {
@@ -41,7 +41,7 @@ uint32_t millis()
 void initRobot()
 {
     motor3.write(0.0);
-    PID_Joint1.set_output_limits(-1.0f, 1.0f);
+    PI_Joint1.set_output_limits(-1.0f, 1.0f);
     joint_setpoint1 = 0;
     pid_rate = float(sample_time_ms) / 1000.0f;
 }
@@ -59,9 +59,9 @@ void updatePid(int32_t joint1_encoder_ticks)
     v1Filt = 0.854 * v1Filt + 0.0728 * joint_velocity1 + 0.0728 * v1Prev;
     v1Prev = joint_velocity1;
 
-    PID_Joint1.compute();
+    PI_Joint1.compute();
 
-    motor1_vel = joint_effort1 + (speed_target - v1Filt) * 0.15;
+    motor1_vel = joint_effort1 + (speed_target - v1Filt) * kd1;
 
     motor3.write(-motor1_vel);
 }
@@ -97,7 +97,7 @@ int main()
     float dot_theta0 = 0;
     float thetaf = 90;
     float dot_thetaf = 0;
-    float t_final = 3;
+    float t_final = 5.0;
 
     float a = theta0;
     float b = dot_theta0;
@@ -107,7 +107,9 @@ int main()
     int input_char;
     int input_char_index;
     char *char_pt1;
-
+    int i = 0;
+    float res = 0;
+    float MSE = 0;
     float joint1_sp = 0.0;
 
     sleep_ms(3000);
@@ -130,23 +132,27 @@ int main()
             input_char = getchar_timeout_us(0);
             joint_setpoint1 = joint1_sp;
         }
+        sleep_ms(20);
         float currT = millis() / 1e3 - 3;
         if (currT < t_final)
         {
             joint_setpoint1 = a + b * currT + c * pow(currT, 2) + d * pow(currT, 3);
             speed_target = b + 2 * c * currT + 3 * d * pow(currT, 2);
+            MSE += pow((joint_velocity1 - speed_target), 2);
+            i++;
         }
         else
         {
-            sleep_ms(500);
+            res = MSE / ((float)i);
             joint_setpoint1 = 0;
             speed_target = 0;
+            sleep_ms(500);
         }
+        printf("%.4f, ", res);
         printf("%.4f, ", joint_position1);
         printf("%.4f, ", joint_setpoint1);
         printf("%.4f, ", speed_target);
         printf("%.3f \n", v1Filt);
-        sleep_ms(30);
         gpio_put(PICO_DEFAULT_LED_PIN, 0);
     }
 }
