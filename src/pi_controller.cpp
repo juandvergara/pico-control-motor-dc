@@ -5,7 +5,7 @@
 #include "pi_controller.h"
 
 PI::PI(float *input, float *output, float *setpoint, float kp, float ki, uint32_t sample_time_ms)
-    : _my_input(input), _my_output(output), _my_setpoint(setpoint), _sample_time_ms(sample_time_ms), _out_sum(0), _last_input(0)
+    : _my_input(input), _my_output(output), _my_setpoint(setpoint), _sample_time_ms(sample_time_ms), _out_sum(0)
 {
     set_output_limits(-1.0f, 1.0f);
     set_gains(kp, ki);

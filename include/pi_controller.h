@@ -1,9 +1,6 @@
-//
-// Created by pepe on 21/6/21.
-//
 
-#ifndef PI_CONTROLLER_H
-#define PI_CONTROLLER_H
+/*#ifndef PI_CONTROLLER_H
+#define PI_CONTROLLER_H*/
 
 #include "pico/stdlib.h"
 #include "dc_motor.h"
@@ -13,7 +10,7 @@
 class PI
 {
 public:
-    PID(float *input, float *output, float *setpoint, float kp, float ki, uint32_t sample_time_ms);
+    PI(float *input, float *output, float *setpoint, float kp, float ki, uint32_t sample_time_ms);
     void compute(void);
     void set_output_limits(float min, float max);
     void set_gains(float kp, float ki);
@@ -36,4 +33,4 @@ private:
     float _last_output;
 };
 
-#endif PI_CONTROLLER_H
+//#endif PI_CONTROLLER_H
