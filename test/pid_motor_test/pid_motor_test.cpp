@@ -6,10 +6,13 @@
 #include "pi_controller.h"
 
 #define PI_N 3.14159265359f
+#define elbow_sw 7
 
 Encoder encoder3(M3_ENC_A_PIN, M3_ENC_B_PIN);
 
 DCMotor motor3(M3_ENA_PIN, M3_ENB_PIN);
+
+bool homing_success = false;
 
 float kp1 = 0.2;
 float ki1 = 0.8;
@@ -38,8 +41,38 @@ uint32_t millis()
     return to_ms_since_boot(get_absolute_time());
 }
 
+void home()
+{
+    gpio_init(elbow_sw);
+    gpio_pull_up(elbow_sw);
+    sleep_ms(100);
+
+    while (true)
+    {
+        if (!gpio_get(elbow_sw))
+        {
+            printf("fixing home, \n");
+            motor3.write(0.4);
+            sleep_ms(1000);
+        }
+        else
+        {
+            motor3.write(-0.4);
+            if (!gpio_get(elbow_sw))
+            {
+                printf("Homing elbow..., \n");
+                motor3.write(0.0);
+                joint_position1 = 0;
+                printf("Home elbow success! , \n");
+                break;
+            }
+        }
+    }
+}
+
 void initRobot()
 {
+    home();
     motor3.write(0.0);
     PI_Joint1.set_output_limits(-1.0f, 1.0f);
     joint_setpoint1 = 0;
@@ -79,6 +112,7 @@ void encoders_callback(uint gpio, uint32_t events)
 
 int main()
 {
+    motor3.write(0.0);
     stdio_init_all();
     printf("PID Motor test");
     gpio_init(PICO_DEFAULT_LED_PIN);
@@ -95,7 +129,7 @@ int main()
 
     float theta0 = 0;
     float dot_theta0 = 0;
-    float thetaf = 90;
+    float thetaf = 0;
     float dot_thetaf = 0;
     float t_final = 5.0;
 
@@ -111,8 +145,6 @@ int main()
     float res = 0;
     float MSE = 0;
     float joint1_sp = 0.0;
-
-    sleep_ms(3000);
 
     while (true)
     {
@@ -134,25 +166,20 @@ int main()
         }
         sleep_ms(20);
         float currT = millis() / 1e3 - 3;
-        if (currT < t_final)
+        /*if (currT < t_final)
         {
             joint_setpoint1 = a + b * currT + c * pow(currT, 2) + d * pow(currT, 3);
             speed_target = b + 2 * c * currT + 3 * d * pow(currT, 2);
             MSE += pow((joint_velocity1 - speed_target), 2);
             i++;
-        }
-        else
-        {
-            res = MSE / ((float)i);
+        }else{
             joint_setpoint1 = 0;
             speed_target = 0;
-            sleep_ms(500);
-        }
-        printf("%.4f, ", res);
-        printf("%.4f, ", joint_position1);
-        printf("%.4f, ", joint_setpoint1);
+        }*/
+        printf("%.4f, \n", joint_position1);
+        /*printf("%.4f, ", joint_setpoint1);
         printf("%.4f, ", speed_target);
-        printf("%.3f \n", v1Filt);
+        printf("%.3f \n", v1Filt);*/
         gpio_put(PICO_DEFAULT_LED_PIN, 0);
     }
 }
