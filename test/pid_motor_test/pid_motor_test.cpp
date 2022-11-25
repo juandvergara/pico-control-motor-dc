@@ -3,9 +3,8 @@
 #include <stdio.h>
 #include "dc_motor_v2.h"
 #include "encoder.h"
-#include "pi_controller.h"
+#include "pid_filter.h"
 
-#define PI_N 3.14159265359f
 #define elbow_sw 7
 
 Encoder encoder3(M3_ENC_A_PIN, M3_ENC_B_PIN);
@@ -14,16 +13,21 @@ DCMotor motor3(M3_ENA_PIN, M3_ENB_PIN);
 
 bool homing_success = false;
 
+struct Joint
+{
+    float position = 0;
+    float velocity = 0;
+    float effort = 0;
+    float ref_position = 0;
+    float ref_velocity = 0;
+};
+
+Joint elbow_joint;
+
 float kp1 = 0.2;
-float ki1 = 0.8;
-float kd1 = 0.07;
+float ki1 = 0.00008;
+float kd1 = 0.00007;
 
-float joint_input1, joint_effort1, joint_setpoint1 = 0.0;
-float joint_position1, past_joint_position1;
-float joint_velocity1;
-float speed_target = 0;
-
-float v1Filt = 0;
 float v1Prev = 0;
 
 uint32_t sample_time_ms = 10;
@@ -32,9 +36,8 @@ float pid_rate;
 char in_buffer[500];
 uint16_t char_idx = 0;
 
-float theta = 1.0 / (2.0 * PI_N * 10.0);
-
-PI PI_Joint1(&joint_input1, &joint_effort1, &joint_setpoint1, kp1, ki1, sample_time_ms);
+PID PID_Joint1(&elbow_joint.position, &elbow_joint.velocity, &elbow_joint.effort, &elbow_joint.ref_position, &elbow_joint.ref_velocity,
+               kp1, ki1, kd1, sample_time_ms);
 
 uint32_t millis()
 {
@@ -62,7 +65,8 @@ void home()
             {
                 printf("Homing elbow..., \n");
                 motor3.write(0.0);
-                joint_position1 = 0;
+                elbow_joint.position = 0;
+                elbow_joint.velocity = 0;
                 printf("Home elbow success! , \n");
                 break;
             }
@@ -74,8 +78,9 @@ void initRobot()
 {
     home();
     motor3.write(0.0);
-    PI_Joint1.set_output_limits(-1.0f, 1.0f);
-    joint_setpoint1 = 0;
+    PID_Joint1.set_output_limits(-1.0f, 1.0f);
+    elbow_joint.ref_position = 0;
+    elbow_joint.ref_velocity = 0;
     pid_rate = float(sample_time_ms) / 1000.0f;
 }
 
@@ -84,17 +89,16 @@ void updatePid(int32_t joint1_encoder_ticks)
     int32_t joint1_ticks = joint1_encoder_ticks;
 
     float motor1_vel = 0;
-    past_joint_position1 = joint_position1;
-    joint_position1 = float(joint1_ticks) * 360.0f / (80.0f * 127.7f * 4.0f);
-    joint_input1 = joint_position1;
+    float position = float(joint1_ticks) * 360.0f / (80.0f * 127.7f * 4.0f);
+    float velocity = (position - elbow_joint.position) / pid_rate;
 
-    joint_velocity1 = (joint_position1 - past_joint_position1) / pid_rate;
-    v1Filt = 0.854 * v1Filt + 0.0728 * joint_velocity1 + 0.0728 * v1Prev;
-    v1Prev = joint_velocity1;
+    elbow_joint.position = position;
+    elbow_joint.velocity = 0.854 * elbow_joint.velocity + 0.0728 * velocity + 0.0728 * v1Prev;
+    v1Prev = velocity;
 
-    PI_Joint1.compute();
+    PID_Joint1.compute();
 
-    motor1_vel = joint_effort1 + (speed_target - v1Filt) * kd1;
+    motor1_vel = elbow_joint.effort;
 
     motor3.write(-motor1_vel);
 }
@@ -108,6 +112,32 @@ bool timerCallback(repeating_timer_t *rt)
 void encoders_callback(uint gpio, uint32_t events)
 {
     encoder3.readPosition();
+}
+
+float path_generator(float target, float time, float currT, bool pos)
+{
+    float result;
+
+    float theta0 = 0;
+    float dot_theta0 = 0;
+    float thetaf = target;
+    float dot_thetaf = 0;
+    float t_final = time;
+
+    float a = theta0;
+    float b = dot_theta0;
+    float c = 3.0 * (thetaf - theta0) / pow(t_final, 2) - 2 * dot_theta0 / pow(t_final, 2) - dot_thetaf / pow(t_final, 2);
+    float d = -2.0 * (thetaf - theta0) / pow(t_final, 3) + (dot_thetaf - dot_theta0) / pow(t_final, 2);
+
+    if (pos)
+    {
+        result = a + b * currT + c * pow(currT, 2) + d * pow(currT, 3);
+    }
+    else
+    {
+        result = b + 2 * c * currT + 3 * d * pow(currT, 2);
+    }
+    return result;
 }
 
 int main()
@@ -126,17 +156,6 @@ int main()
     {
         printf("Failure by not set timer!! \n");
     }
-
-    float theta0 = 0;
-    float dot_theta0 = 0;
-    float thetaf = 0;
-    float dot_thetaf = 0;
-    float t_final = 5.0;
-
-    float a = theta0;
-    float b = dot_theta0;
-    float c = 3.0 * (thetaf - theta0) / pow(t_final, 2) - 2 * dot_theta0 / pow(t_final, 2) - dot_thetaf / pow(t_final, 2);
-    float d = -2.0 * (thetaf - theta0) / pow(t_final, 3) + (dot_thetaf - dot_theta0) / pow(t_final, 2);
 
     int input_char;
     int input_char_index;
@@ -162,24 +181,14 @@ int main()
                 break;
             }
             input_char = getchar_timeout_us(0);
-            joint_setpoint1 = joint1_sp;
+            elbow_joint.ref_position = joint1_sp;
         }
         sleep_ms(20);
-        float currT = millis() / 1e3 - 3;
-        /*if (currT < t_final)
-        {
-            joint_setpoint1 = a + b * currT + c * pow(currT, 2) + d * pow(currT, 3);
-            speed_target = b + 2 * c * currT + 3 * d * pow(currT, 2);
-            MSE += pow((joint_velocity1 - speed_target), 2);
-            i++;
-        }else{
-            joint_setpoint1 = 0;
-            speed_target = 0;
-        }*/
-        printf("%.4f, \n", joint_position1);
-        /*printf("%.4f, ", joint_setpoint1);
-        printf("%.4f, ", speed_target);
-        printf("%.3f \n", v1Filt);*/
+        float currT = millis() / 1e3;
+        printf("%.4f, ", elbow_joint.position);
+        printf("%.4f, ", elbow_joint.ref_position);
+        printf("%.4f, ", elbow_joint.ref_velocity);
+        printf("%.3f \n", elbow_joint.velocity);
         gpio_put(PICO_DEFAULT_LED_PIN, 0);
     }
 }
