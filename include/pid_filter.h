@@ -2,16 +2,18 @@
 // Created by pepe on 21/6/21.
 //
 
-/*#ifndef DIFF_DRIVE_PID_CONTROLLER_H
-#define DIFF_DRIVE_PID_CONTROLLER_H*/
+#ifndef PID_CONTROLLER_H
+#define PID_CONTROLLER_H
+
 #include "pico/stdlib.h"
 #include "dc_motor.h"
-#include "encoder_cuadratura.h"
 #include "cstdio"
 
-class PID {
+class PID
+{
 public:
-    PID(float* input, float* output, float* setpoint, float kp, float ki, float kd, uint32_t sample_time_ms);
+    PID(float *input, float *dot_input, float *output, float *setpoint, float *dot_setpoint,
+        float kp, float ki, float kd, uint32_t sample_time_ms);
     void compute(void);
     void set_output_limits(float min, float max);
     void set_gains(float kp, float ki, float kd);
@@ -24,19 +26,18 @@ private:
     float _kd;
     float _ki;
 
-    float* _my_input;
-    float* _my_output;
-    float* _my_setpoint;
+    float *_my_input;
+    float *_my_dot_input;
+    float *_my_output;
+    float *_my_setpoint;
+    float *_my_dot_setpoint;
     float _out_min;
     float _out_max;
     float _out_sum;
     float _err_sum;
     float _last_err;
-    float _last_err2;
     float _last_input;
     float _last_output;
-
 };
 
-
-//#endif //DIFF_DRIVE_PID_CONTROLLER_H
+#endif // DIFF_DRIVE_PID_CONTROLLER_H
