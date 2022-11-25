@@ -10,6 +10,8 @@
 Encoder encoder3(M3_ENC_A_PIN, M3_ENC_B_PIN);
 
 DCMotor motor3(M3_ENA_PIN, M3_ENB_PIN);
+DCMotor motor4(M4_ENA_PIN, M4_ENB_PIN);
+DCMotor motor5(M5_ENA_PIN, M5_ENB_PIN);
 
 bool homing_success = false;
 
@@ -23,6 +25,7 @@ struct Joint
 };
 
 Joint elbow_joint;
+Joint wrist_pitch_joint;
 
 float kp1 = 0.2;
 float ki1 = 0.00008;
@@ -46,13 +49,17 @@ uint32_t millis()
 
 void home()
 {
-    gpio_init(elbow_sw);
-    gpio_pull_up(elbow_sw);
+    gpio_init(M3_HOME_SW);
+    gpio_pull_up(M3_HOME_SW);
+    gpio_init(M4_HOME_SW);
+    gpio_pull_up(M4_HOME_SW);
+    gpio_init(M5_HOME_SW);
+    gpio_pull_up(M5_HOME_SW);
     sleep_ms(100);
 
     while (true)
     {
-        if (!gpio_get(elbow_sw))
+        if (!gpio_get(M3_HOME_SW))
         {
             printf("fixing home, \n");
             motor3.write(0.4);
@@ -61,7 +68,7 @@ void home()
         else
         {
             motor3.write(-0.4);
-            if (!gpio_get(elbow_sw))
+            if (!gpio_get(M3_HOME_SW))
             {
                 printf("Homing elbow..., \n");
                 motor3.write(0.0);
@@ -72,12 +79,58 @@ void home()
             }
         }
     }
+
+    while (true)
+    {
+        if (!gpio_get(M4_HOME_SW))
+        {
+            printf("fixing wrist pitch home, \n");
+            motor4.write(-0.4);
+            sleep_ms(1000);
+        }
+        else
+        {
+            motor4.write(0.4);
+            if (!gpio_get(M4_HOME_SW))
+            {
+                printf("Homing wrist pitch..., \n");
+                motor4.write(0.0);
+                wrist_pitch_joint.position = 0;
+                wrist_pitch_joint.velocity = 0;
+                printf("Home wrist pitch success! , \n");
+                break;
+            }
+        }
+    }
+     while (true)
+    {
+        if (!gpio_get(M5_HOME_SW))
+        {
+            printf("fixing wrist yaw home, \n");
+            motor5.write(-0.4);
+            sleep_ms(1000);
+        }
+        else
+        {
+            motor5.write(0.4);
+            if (!gpio_get(M5_HOME_SW))
+            {
+                printf("Homing wrist yaw..., \n");
+                motor5.write(0.0);
+                wrist_pitch_joint.position = 0;
+                wrist_pitch_joint.velocity = 0;
+                printf("Home wrist yaw success! , \n");
+                break;
+            }
+        }
+    }
 }
 
 void initRobot()
 {
     home();
     motor3.write(0.0);
+    //motor4.write(0.0);
     PID_Joint1.set_output_limits(-1.0f, 1.0f);
     elbow_joint.ref_position = 0;
     elbow_joint.ref_velocity = 0;
@@ -143,6 +196,8 @@ float path_generator(float target, float time, float currT, bool pos)
 int main()
 {
     motor3.write(0.0);
+    motor4.write(0.0);
+    motor5.write(0.0);
     stdio_init_all();
     printf("PID Motor test");
     gpio_init(PICO_DEFAULT_LED_PIN);
