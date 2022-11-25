@@ -46,7 +46,7 @@
 /*------------- SW_HOME PINS -------------*/
 #define M3_HOME_SW 7
 #define M4_HOME_SW 8
-#define M3_HOME_SW 9
+#define M5_HOME_SW 9
 
 #define M0_ENC_INVERTED false
 #define M1_ENC_INVERTED true
