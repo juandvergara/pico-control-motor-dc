@@ -6,7 +6,6 @@
 #define PID_CONTROLLER_H
 
 #include "pico/stdlib.h"
-#include "dc_motor.h"
 #include "cstdio"
 
 class PID
