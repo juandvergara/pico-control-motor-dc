@@ -43,3 +43,7 @@ void DCMotor::write(float duty_cycle)
     duty_cycle = duty_cycle * 0.5f + 0.5f;
     write_int16((int16_t)(duty_cycle * TOP));
 }
+
+void DCMotor::stop(){
+    write_int16((int16_t)(0.5f * TOP));
+}

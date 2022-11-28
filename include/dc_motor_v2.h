@@ -18,6 +18,7 @@ public:
     DCMotor(uint enA_pin, uint enB_pin);
     void write_int16(int16_t pwm);
     void write(float duty_cycle);
+    void stop();
 
 private:
     uint _enA_pin;
