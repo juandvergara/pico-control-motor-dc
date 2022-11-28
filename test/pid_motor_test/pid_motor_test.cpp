@@ -5,15 +5,11 @@
 #include "encoder.h"
 #include "pid_filter.h"
 
-#define elbow_sw 7
-
 Encoder encoder3(M3_ENC_A_PIN, M3_ENC_B_PIN);
 
 DCMotor motor3(M3_ENA_PIN, M3_ENB_PIN);
 DCMotor motor4(M4_ENA_PIN, M4_ENB_PIN);
 DCMotor motor5(M5_ENA_PIN, M5_ENB_PIN);
-
-bool homing_success = false;
 
 struct Joint
 {
@@ -30,11 +26,10 @@ Joint wrist_pitch_joint;
 float kp1 = 0.2;
 float ki1 = 0.00008;
 float kd1 = 0.00007;
-
-float v1Prev = 0;
-
 uint32_t sample_time_ms = 10;
 float pid_rate;
+
+float v1Prev = 0;
 
 char in_buffer[500];
 uint16_t char_idx = 0;
@@ -57,80 +52,76 @@ void home()
     gpio_pull_up(M5_HOME_SW);
     sleep_ms(100);
 
-    while (true)
+    if (!gpio_get(M3_HOME_SW))
     {
-        if (!gpio_get(M3_HOME_SW))
-        {
-            printf("fixing home, \n");
-            motor3.write(0.4);
-            sleep_ms(1000);
-        }
-        else
-        {
-            motor3.write(-0.4);
-            if (!gpio_get(M3_HOME_SW))
-            {
-                printf("Homing elbow..., \n");
-                motor3.write(0.0);
-                elbow_joint.position = 0;
-                elbow_joint.velocity = 0;
-                printf("Home elbow success! , \n");
-                break;
-            }
-        }
+        printf("Fixing elbow home, \n");
+        motor3.write(0.4);
+        sleep_ms(1000);
     }
 
     while (true)
     {
+        motor3.write(-0.4);
+        if (!gpio_get(M3_HOME_SW))
+        {
+            motor3.write(0.0);
+            elbow_joint.position = 0;
+            elbow_joint.velocity = 0;
+            printf("Home elbow success! , \n");
+            break;
+        }
+        printf("Homing elbow..., \n");
+    }
+
+    if (!gpio_get(M4_HOME_SW))
+    {
+        printf("Fixing wrist pitch home, \n");
+        motor4.write(-0.4);
+        sleep_ms(1000);
+    }
+
+    while (true)
+    {
+        motor4.write(0.4);
         if (!gpio_get(M4_HOME_SW))
         {
-            printf("fixing wrist pitch home, \n");
-            motor4.write(-0.4);
-            sleep_ms(1000);
+            motor4.write(0.0);
+            wrist_pitch_joint.position = 0;
+            wrist_pitch_joint.velocity = 0;
+            printf("Home wrist pitch success! , \n");
+            break;
         }
-        else
-        {
-            motor4.write(0.4);
-            if (!gpio_get(M4_HOME_SW))
-            {
-                printf("Homing wrist pitch..., \n");
-                motor4.write(0.0);
-                wrist_pitch_joint.position = 0;
-                wrist_pitch_joint.velocity = 0;
-                printf("Home wrist pitch success! , \n");
-                break;
-            }
-        }
+        printf("Homing wrist pitch..., \n");
     }
-     while (true)
+
+    if (!gpio_get(M5_HOME_SW))
     {
+        printf("fixing wrist yaw home, \n");
+        motor5.write(-0.4);
+        sleep_ms(1000);
+    }
+
+    while (true)
+    {
+        motor5.write(0.4);
         if (!gpio_get(M5_HOME_SW))
         {
-            printf("fixing wrist yaw home, \n");
-            motor5.write(-0.4);
-            sleep_ms(1000);
-        }
-        else
-        {
-            motor5.write(0.4);
-            if (!gpio_get(M5_HOME_SW))
-            {
-                printf("Homing wrist yaw..., \n");
-                motor5.write(0.0);
-                wrist_pitch_joint.position = 0;
-                wrist_pitch_joint.velocity = 0;
-                printf("Home wrist yaw success! , \n");
-                break;
-            }
+            printf("Homing wrist yaw..., \n");
+            motor5.write(0.0);
+            wrist_pitch_joint.position = 0;
+            wrist_pitch_joint.velocity = 0;
+            printf("Home wrist yaw success! , \n");
+            break;
         }
     }
 }
 
 void initRobot()
 {
+    motor3.stop();
+    motor4.stop();
+    motor5.stop();
     home();
-    motor3.write(0.0);
-    //motor4.write(0.0);
     PID_Joint1.set_output_limits(-1.0f, 1.0f);
     elbow_joint.ref_position = 0;
     elbow_joint.ref_velocity = 0;
@@ -195,9 +186,6 @@ float path_generator(float target, float time, float currT, bool pos)
 
 int main()
 {
-    motor3.write(0.0);
-    motor4.write(0.0);
-    motor5.write(0.0);
     stdio_init_all();
     printf("PID Motor test");
     gpio_init(PICO_DEFAULT_LED_PIN);
