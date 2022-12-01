@@ -4,7 +4,7 @@
 #include "hardware/i2c.h"
 #include "dc_motor_v2.h"
 #include "encoder.h"
-#include "pi_controller.h"
+#include "pid_filter.h"
 
 #define I2C_PORT i2c1
 #define I2C_SDA_PIN 26
@@ -16,6 +16,19 @@
 
 static int SLAVE_ADDR = 0x15;
 
+struct Joint
+{
+    float position = 0;
+    float velocity = 0;
+    float effort = 0;
+    float ref_position = 0;
+    float ref_velocity = 0;
+};
+
+Joint elbow_joint;
+Joint wrist_left_joint;
+Joint wrist_right_joint;
+
 DCMotor elbow_motor(M3_ENA_PIN, M3_ENB_PIN);
 DCMotor wrist_left_motor(M4_ENA_PIN, M4_ENB_PIN);
 DCMotor wrist_right_motor(M5_ENA_PIN, M5_ENB_PIN);
@@ -24,25 +37,33 @@ Encoder elbow_encoder(M3_ENC_A_PIN, M3_ENC_B_PIN);
 Encoder wrist_left_encoder(M4_ENC_A_PIN, M4_ENC_B_PIN);
 Encoder wrist_right_encoder(M5_ENC_A_PIN, M5_ENC_B_PIN);
 
-float kp1 = 0.50;
+/*float kp1 = 0.50;
 float kd1 = 1.0;
 float ki1 = 0.25;
 float kp2 = 0.50;
 float kd2 = 1.0;
-float ki2 = 0.25;
+float ki2 = 0.25;*/
 
-float elbow_input, elbow_effort, elbow_setpoint = 0.0;
-float wrist_left_input, wrist_left_effort, wrist_left_setpoint = 0.0;
-float wrist_right_input, wrist_right_effort, wrist_right_setpoint = 0.0;
+float kp1 = 0.2;
+float ki1 = 0.00008;
+float kd1 = 0.00007;
+float kp2 = 0.2;
+float ki2 = 0.00008;
+float kd2 = 0.00007;
 
-float elbow_position, wrist_left_position, wrist_right_position;
+float v1Prev = 0.0;
+float v2Prev = 0.0;
+float v3Prev = 0.0;
 
 uint32_t sample_time_ms = 10;
 float pid_rate;
 
-PID PID_elbow(&elbow_input, &elbow_effort, &elbow_setpoint, kp1, ki1, kd1, sample_time_ms);
-PID PID_wrist_left(&wrist_left_input, &wrist_left_effort, &wrist_left_setpoint, kp2, ki2, kd2, sample_time_ms);
-PID PID_wrist_right(&wrist_right_input, &wrist_right_effort, &wrist_right_setpoint, kp2, ki2, kd2, sample_time_ms);
+PID PID_elbow(&elbow_joint.position, &elbow_joint.velocity, &elbow_joint.effort, &elbow_joint.ref_position, &elbow_joint.ref_velocity,
+               kp1, ki1, kd1, sample_time_ms);
+PID PID_wrist_left(&wrist_left_joint.position, &wrist_left_joint.velocity, &wrist_left_joint.effort, &wrist_left_joint.ref_position, &wrist_left_joint.ref_velocity,
+               kp2, ki2, kd2, sample_time_ms);
+PID PID_wrist_right(&wrist_right_joint.position, &wrist_right_joint.velocity, &wrist_right_joint.effort, &wrist_right_joint.ref_position, &wrist_right_joint.ref_velocity,
+               kp2, ki2, kd2, sample_time_ms);
 
 uint32_t millis()
 {
@@ -59,9 +80,9 @@ void initRobot()
     PID_wrist_left.set_output_limits(-1.0f, 1.0f);
     PID_wrist_right.set_output_limits(-1.0f, 1.0f);
 
-    elbow_setpoint = 0;
-    wrist_left_setpoint = 0;
-    wrist_right_setpoint = 0;
+    elbow_joint.ref_position = 0;
+    wrist_left_joint.ref_position = 0;
+    wrist_right_joint.ref_position = 0;
 
     pid_rate = float(sample_time_ms) / 1000.0f;
 }
@@ -76,21 +97,33 @@ void updatePid(int32_t joint1_encoder_ticks, int32_t joint2_encoder_ticks, int32
     float motor2_vel = 0;
     float motor3_vel = 0;
 
-    elbow_position = float(joint1_ticks) * ELBOW_RELATION;
-    wrist_left_position = float(joint2_ticks) * WRIST_RELATION;
-    wrist_right_position = float(joint3_ticks) * WRIST_RELATION;
+    float position_elbow = float(joint1_ticks) * ELBOW_RELATION;
+    float position_wrist_left = float(joint2_ticks) * WRIST_RELATION;
+    float position_wrist_right = float(joint3_ticks) * WRIST_RELATION;
 
-    elbow_input = elbow_position;
-    wrist_left_input = wrist_left_position;
-    wrist_right_input = wrist_right_position;
+    float velocity_elbow = (position_elbow - elbow_joint.position) / pid_rate;
+    float velocity_wrist_left = (position_wrist_left - wrist_left_joint.position) / pid_rate;
+    float velocity_wrist_right = (position_wrist_right - wrist_right_joint.position) / pid_rate;
+    
+    elbow_joint.position = position_elbow;
+    wrist_left_joint.position = position_wrist_left;
+    wrist_right_joint.position = position_wrist_right;
+
+    elbow_joint.velocity = 0.854 * elbow_joint.velocity + 0.0728 * velocity_elbow + 0.0728 * v1Prev;
+    wrist_left_joint.velocity = 0.854 * wrist_left_joint.velocity + 0.0728 * velocity_wrist_left + 0.0728 * v2Prev;
+    wrist_right_joint.velocity = 0.854 * wrist_right_joint.velocity + 0.0728 * velocity_wrist_right + 0.0728 * v3Prev;
+
+    v1Prev = velocity_elbow;
+    v2Prev = velocity_wrist_left;
+    v3Prev = velocity_wrist_right;
 
     PID_elbow.compute();
     PID_wrist_left.compute();
     PID_wrist_right.compute();
 
-    M3_ENC_INVERTED ? motor1_vel = -elbow_effort : motor1_vel = elbow_effort;
-    M4_ENC_INVERTED ? motor2_vel = -wrist_left_effort : motor2_vel = wrist_left_effort;
-    M5_ENC_INVERTED ? motor3_vel = -wrist_right_effort : motor3_vel = wrist_right_effort;
+    M3_ENC_INVERTED ? motor1_vel = -elbow_joint.effort : motor1_vel = elbow_joint.effort;
+    M4_ENC_INVERTED ? motor2_vel = -wrist_left_joint.effort : motor2_vel = wrist_left_joint.effort;
+    M5_ENC_INVERTED ? motor3_vel = -wrist_right_joint.effort : motor3_vel = wrist_right_joint.effort;
 
     elbow_motor.write(motor1_vel);
     wrist_left_motor.write(motor2_vel);
@@ -167,9 +200,9 @@ int main()
         base_position = *(float *)&status_base;
         shoulder_position = *(float *)&status_shoulder;
 
-        elbow_setpoint = round(elbow_sp / ELBOW_RELATION) * ELBOW_RELATION;
-        wrist_left_setpoint = round(wrist_left_sp / WRIST_RELATION) * WRIST_RELATION;
-        wrist_right_setpoint = -round(wrist_right_sp / WRIST_RELATION) * WRIST_RELATION;
+        elbow_joint.ref_position = round(elbow_sp / ELBOW_RELATION) * ELBOW_RELATION;
+        wrist_left_joint.ref_position = round(wrist_left_sp / WRIST_RELATION) * WRIST_RELATION;
+        wrist_right_joint.ref_position = -round(wrist_right_sp / WRIST_RELATION) * WRIST_RELATION;
         // READ I2C INFO TO EACH JOINT
 
         /*printf("Slide base: pos: %.3f, \n", slidebase_position);
@@ -178,8 +211,8 @@ int main()
         printf("Elbow: sp %.3f, pos: %.3f, \n", elbow_setpoint, elbow_position);
         printf("Wrist left: sp %.3f, pos: %.3f, \n", wrist_left_setpoint, wrist_left_position);
         printf("Wrist right: sp %.3f, pos: %.3f\n \n", wrist_right_setpoint, wrist_right_position);*/
-        printf("%.3f,%.3f,%.3f,%.3f,%.3f,%.3f", slidebase_position, base_position,
-               shoulder_position, elbow_position, wrist_left_position, wrist_right_position);
+        printf("%.3f,%.3f,%.3f,%.3f,%.3f,%.3f", slidebase_position, base_position, shoulder_position, 
+               elbow_joint.position, wrist_left_joint.position, wrist_right_joint.position);
         sleep_ms(20);
         gpio_put(PICO_DEFAULT_LED_PIN, 0);
     }
