@@ -4,7 +4,7 @@
 #include "hardware/i2c.h"
 #include "dc_motor_v2.h"
 #include "encoder.h"
-#include "pi_controller.h"
+#include "pid_filter.h"
 
 #define I2C_PORT i2c0
 #define I2C_SDA_PIN 4
@@ -17,6 +17,19 @@
 
 static int SLAVE_ADDR = 0x15;
 
+struct Joint
+{
+    float position = 0;
+    float velocity = 0;
+    float effort = 0;
+    float ref_position = 0;
+    float ref_velocity = 0;
+};
+
+Joint slidebase_joint;
+Joint base_joint;
+Joint shoulder_joint;
+
 DCMotor slidebase_motor(M0_ENA_PIN, M0_ENB_PIN);
 DCMotor base_motor(M1_ENA_PIN, M1_ENB_PIN);
 DCMotor shoulder_motor(M2_ENA_PIN, M2_ENB_PIN);
@@ -25,21 +38,29 @@ Encoder slidebase_encoder(M0_ENC_A_PIN, M0_ENC_B_PIN);
 Encoder base_encoder(M1_ENC_A_PIN, M1_ENC_B_PIN);
 Encoder shoulder_encoder(M2_ENC_A_PIN, M2_ENC_B_PIN);
 
-float PID_param1[3] = {2.0, 0.5, 0.5};
-float PID_param2[3] = {2.0, 0.5, 0.5};
+/*float PID_param1[3] = {2.0, 0.5, 0.5};
+float PID_param2[3] = {2.0, 0.5, 0.5};*/
 
-float slidebase_input, slidebase_effort, slidebase_setpoint = 0.0;
-float base_input, base_effort, base_setpoint = 0.0;
-float shoulder_input, shoulder_effort, shoulder_setpoint = 0.0;
+float kp1 = 0.2;
+float ki1 = 0.00008;
+float kd1 = 0.00007;
+float kp2 = 0.2;
+float ki2 = 0.00008;
+float kd2 = 0.00007;
 
-float slidebase_position, base_position, shoulder_position;
+float v1Prev = 0.0;
+float v2Prev = 0.0;
+float v3Prev = 0.0;
 
 uint32_t sample_time_ms = 10;
 float pid_rate;
 
-PID PID_slidebase(&slidebase_input, &slidebase_effort, &slidebase_setpoint, PID_param1[0], PID_param1[1], PID_param1[2], sample_time_ms);
-PID PID_base(&base_input, &base_effort, &base_setpoint, PID_param1[0], PID_param1[1], PID_param1[2], sample_time_ms);
-PID PID_shoulder(&shoulder_input, &shoulder_effort, &shoulder_setpoint, PID_param1[0], PID_param1[1], PID_param1[2], sample_time_ms);
+PID PID_slidebase(&slidebase_joint.position, &slidebase_joint.velocity, &slidebase_joint.effort, &slidebase_joint.ref_position, &slidebase_joint.ref_velocity,
+               kp1, ki1, kd1, sample_time_ms);
+PID PID_base(&base_joint.position, &base_joint.velocity, &base_joint.effort, &base_joint.ref_position, &base_joint.ref_velocity,
+               kp2, ki2, kd2, sample_time_ms);
+PID PID_shoulder(&shoulder_joint.position, &shoulder_joint.velocity, &shoulder_joint.effort, &shoulder_joint.ref_position, &shoulder_joint.ref_velocity,
+               kp2, ki2, kd2, sample_time_ms);
 
 uint32_t millis()
 {
@@ -56,9 +77,9 @@ void initRobot()
     PID_base.set_output_limits(-1.0f, 1.0f);
     PID_shoulder.set_output_limits(-1.0f, 1.0f);
 
-    slidebase_setpoint = 0;
-    base_setpoint = 0;
-    shoulder_setpoint = 0;
+    slidebase_joint.ref_position = 0;
+    base_joint.ref_position = 0;
+    shoulder_joint.ref_position = 0;
 
     pid_rate = float(sample_time_ms) / 1000.0f;
 }
@@ -73,21 +94,33 @@ void updatePid(int32_t joint1_encoder_ticks, int32_t joint2_encoder_ticks, int32
     float motor2_vel = 0;
     float motor3_vel = 0;
 
-    slidebase_position = float(joint1_ticks) * SLIDEBASE_RELATION;
-    base_position = float(joint2_ticks) * BASE_RELATION;
-    shoulder_position = float(joint3_ticks) * SHOULDER_RELATION;
+    float position_slidebase = float(joint1_ticks) * SLIDEBASE_RELATION;
+    float position_base = float(joint2_ticks) * BASE_RELATION;
+    float position_shoulder = float(joint3_ticks) * SHOULDER_RELATION;
 
-    slidebase_input = slidebase_position;
-    base_input = base_position;
-    shoulder_input = shoulder_position;
+    float velocity_slidebase = (position_slidebase - slidebase_joint.position) / pid_rate;
+    float velocity_base = (position_base - base_joint.position) / pid_rate;
+    float velocity_shoulder = (position_shoulder - shoulder_joint.position) / pid_rate;
+    
+    slidebase_joint.position = position_slidebase;
+    base_joint.position = position_base;
+    shoulder_joint.position = position_shoulder;
+
+    slidebase_joint.velocity = 0.854 * slidebase_joint.velocity + 0.0728 * velocity_slidebase + 0.0728 * v1Prev;
+    base_joint.velocity = 0.854 * base_joint.velocity + 0.0728 * velocity_base + 0.0728 * v2Prev;
+    shoulder_joint.velocity = 0.854 * shoulder_joint.velocity + 0.0728 * velocity_shoulder + 0.0728 * v3Prev;
+
+    v1Prev = velocity_slidebase;
+    v2Prev = velocity_base;
+    v3Prev = velocity_shoulder;
 
     PID_slidebase.compute();
     PID_base.compute();
     PID_shoulder.compute();
 
-    M0_ENC_INVERTED ? motor1_vel = -slidebase_effort : motor3_vel = shoulder_effort;
-    M1_ENC_INVERTED ? motor2_vel = -base_effort : motor3_vel = shoulder_effort;
-    M2_ENC_INVERTED ? motor3_vel = -shoulder_effort : motor3_vel = shoulder_effort;
+    M0_ENC_INVERTED ? motor1_vel = -slidebase_joint.effort : motor3_vel = slidebase_joint.effort;
+    M1_ENC_INVERTED ? motor2_vel = -base_joint.effort : motor3_vel = base_joint.effort;
+    M2_ENC_INVERTED ? motor3_vel = -shoulder_joint.effort : motor3_vel = shoulder_joint.effort;
 
     slidebase_motor.write(motor1_vel);
     base_motor.write(motor2_vel);
@@ -169,9 +202,9 @@ int main()
                 wrist_right_sp = strtof(char_pt5 + 1, NULL);
                 break;
             }
-            slidebase_setpoint = slidebase_sp;
-            base_setpoint = round(base_sp / BASE_RELATION) * BASE_RELATION;
-            shoulder_setpoint = round(shoulder_sp / SHOULDER_RELATION) * SHOULDER_RELATION;
+            slidebase_joint.ref_position = slidebase_sp;
+            base_joint.ref_position = round(base_sp / BASE_RELATION) * BASE_RELATION;
+            shoulder_joint.ref_position = round(shoulder_sp / SHOULDER_RELATION) * SHOULDER_RELATION;
             input_char = getchar_timeout_us(0);
         }
 
@@ -183,11 +216,11 @@ int main()
         target_slave3 = (uint8_t *)(&wrist_right_sp);
 
         uint8_t *status_slidebase;
-        status_slidebase = (uint8_t *)(&slidebase_position);
+        status_slidebase = (uint8_t *)(&slidebase_joint.position);
         uint8_t *status_base;
-        status_base = (uint8_t *)(&base_position);
+        status_base = (uint8_t *)(&base_joint.position);
         uint8_t *status_shoulder;
-        status_shoulder = (uint8_t *)(&shoulder_position);
+        status_shoulder = (uint8_t *)(&shoulder_joint.position);
 
         i2c_write_blocking(I2C_PORT, SLAVE_ADDR, target_slave1, 4, false);
         i2c_write_blocking(I2C_PORT, SLAVE_ADDR, target_slave2, 4, false);
@@ -196,9 +229,9 @@ int main()
         i2c_write_blocking(I2C_PORT, SLAVE_ADDR, status_base, 4, false);
         i2c_write_blocking(I2C_PORT, SLAVE_ADDR, status_shoulder, 4, false);
 
-        /*printf("Slide base: sp %.3f, pos: %.3f, \n", slidebase_setpoint, slidebase_position);
-        printf("Base: sp %.3f, pos: %.3f, \n", base_setpoint, base_position);
-        printf("Shoulder: sp %.3f, pos: %.3f\n \n", shoulder_setpoint, shoulder_position);*/
+        /*printf("Slide base: sp %.3f, pos: %.3f, \n", slidebase_joint.ref_position, slidebase_joint.position);
+        printf("Base: sp %.3f, pos: %.3f, \n", base_joint.ref_position, base_joint.position);
+        printf("Shoulder: sp %.3f, pos: %.3f\n \n", shoulder_joint.ref_position, shoulder_joint.position);*/
         sleep_ms(20);
         gpio_put(PICO_DEFAULT_LED_PIN, 0);
     }
