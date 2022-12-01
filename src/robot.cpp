@@ -3,6 +3,9 @@
 //
 
 #include "robot.h"
+#include "pins.h"
+#include "dc_motor_v2.h"
+#include "encoder.h"
 
 Robot::Robot(
         float kp,
@@ -37,53 +40,51 @@ _status_led_pin(status_led_pin)
     _pid_rate = float(sample_time_ms) / 1000.0f;
     initPins();
 }
-
-void Robot::updatePid(uint32_t joint1_encoder_ticks, uint32_t joint2_encoder_ticks, uint32_t joint3_encoder_ticks,)
+void Robot::updatePid(int32_t joint1_encoder_ticks, int32_t joint2_encoder_ticks, int32_t joint3_encoder_ticks)
 {
     int32_t joint1_ticks = joint1_encoder_ticks;
     int32_t joint2_ticks = joint2_encoder_ticks;
     int32_t joint3_ticks = joint3_encoder_ticks;
 
-    _state.l_position = (2.0 * M_PI) * l_ticks / ROBOT_MOTOR_PPR;
-    _state.r_position = (2.0 * M_PI) * r_ticks / ROBOT_MOTOR_PPR;
-    _state.r_position = (2.0 * M_PI) * r_ticks / ROBOT_MOTOR_PPR;
+    float motor1_vel = 0;
+    float motor2_vel = 0;
+    float motor3_vel = 0;
 
-    int32_t djoint1_ticks = joint1_ticks - _state.joint1_ticks;
-    int32_t djoint2_ticks = joint2_ticks - _state.joint2_ticks;
-    int32_t djoint3_ticks = joint3_ticks - _state.joint3_ticks;
+    float position_elbow = float(joint1_ticks) * 360.0f / (80.0f * 127.7f * 4.0f);
+    float position_wrist_left = float(joint2_ticks) * 360.0f * 23.0f / (80.0f * 65.5f * 32.0f);
+    float position_wrist_right = float(joint3_ticks) * 360.0f * 23.0f / (80.0f * 65.5f * 32.0f);
 
-    // update odometry
-    // updateOdometry(djoint1_ticks, djoint2_ticks);
+    float velocity_elbow = (position_elbow - elbow_joint.position) / pid_rate;
+    float velocity_wrist_left = (position_wrist_left - wrist_left_joint.position) / pid_rate;
+    float velocity_wrist_right = (position_wrist_right - wrist_right_joint.position) / pid_rate;
 
-    _state.joint1_ref_speed = _joint1_setpoint;
-    _state.joint2_ref_speed = _joint2_setpoint;
-    _state.joint3_ref_speed = _joint3_setpoint;
+    elbow_joint.position = position_elbow;
+    wrist_left_joint.position = position_wrist_left;
+    wrist_right_joint.position = position_wrist_right;
 
-    /*_state.l_speed = (2.0 * M_PI) * djoint1_ticks / (ROBOT_MOTOR_PPR * _pid_rate);
-    _state.r_speed = (2.0 * M_PI) * djoint2_ticks / (ROBOT_MOTOR_PPR * _pid_rate);
+    elbow_joint.velocity = 0.854 * elbow_joint.velocity + 0.0728 * velocity_elbow + 0.0728 * v1Prev;
+    wrist_left_joint.velocity = 0.854 * wrist_left_joint.velocity + 0.0728 * velocity_wrist_left + 0.0728 * v2Prev;
+    wrist_right_joint.velocity = 0.854 * wrist_right_joint.velocity + 0.0728 * velocity_wrist_right + 0.0728 * v3Prev;
 
-    _odom.v = (ROBOT_WHEEL_RADIUS / 2.0f) * (_state.l_speed + _state.r_speed);
-    _odom.w = (ROBOT_WHEEL_RADIUS / ROBOT_WHEEL_SEPARATION) * (_state.r_speed - _state.l_speed);
-*/
-    _joint1_input = _state.joint1_speed;
-    _joint2_input = _state.joint2_speed;
-    _joint3_input = _state.joint3_speed;
+    v1Prev = velocity_elbow;
+    v2Prev = velocity_wrist_left;
+    v3Prev = velocity_wrist_right;
 
-    _joint1_pid.compute();
-    _joint2_pid.compute();
-    _joint3_pid.compute();
+    PID_Joint1.compute();
+    PID_Joint2.compute();
+    PID_Joint3.compute();
 
-    _state.joint1_effort = _joint1_output;
-    _state.joint2_effort = _joint2_output;
-    _state.joint3_effort = _joint2_output;
+    motor1_vel = elbow_joint.effort;
+    motor2_vel = wrist_left_joint.effort;
+    motor3_vel = wrist_right_joint.effort;
 
-    _joint1_motor.write(_state.joint1_effort);
-    _joint2_motor.write(_state.joint2_effort);
-    _joint3_motor.write(_state.joint3_effort);
+    M3_ENC_INVERTED ? motor1_vel = -elbow_joint.effort : motor1_vel = elbow_joint.effort;
+    M4_ENC_INVERTED ? motor2_vel = -wrist_left_joint.effort : motor2_vel = wrist_left_joint.effort;
+    M5_ENC_INVERTED ? motor3_vel = -wrist_right_joint.effort : motor3_vel = wrist_right_joint.effort;
 
-    _state.joint1_ticks = joint1_ticks;
-    _state.joint2_ticks = joint2_ticks;
-    _state.joint3_ticks = joint3_ticks;
+    motor3.write(-motor1_vel);
+    motor4.write(motor2_vel);
+    motor5.write(-motor3_vel);
 }
 
 void Robot::updateOdometry(int32_t dl_ticks, int32_t dr_ticks) {
@@ -134,6 +135,3 @@ RobotState Robot::getState() {
 RobotOdometry Robot::getOdometry() {
     return _odom;
 }
-
-
-

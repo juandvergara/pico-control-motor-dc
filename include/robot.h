@@ -10,17 +10,11 @@
 #include "pid_controller.h"
 #include "dc_motor.h"
 
-#define L_MOTOR_MIN_SPEED -1.0f
-#define L_MOTOR_MAX_SPEED 1.0f
-#define R_MOTOR_MIN_SPEED -1.0f
-#define R_MOTOR_MAX_SPEED 1.0f
-#define ROBOT_MOTOR_PPR 1496.0f
-#define ROBOT_WHEEL_RADIUS 0.0325f
-#define ROBOT_WHEEL_SEPARATION 0.17f
-#define ROBOT_MAX_LINEAR_M_S 0.2
-#define ROBOT_MIN_LINEAR_M_S (-0.2)
-#define ROBOT_MAX_ANGULAR_R_S 2.0
-#define ROBOT_MIN_ANGULAR_R_S (-2.0)
+#define SLIDEBASE_RELATION 0.008809710258418167f
+#define BASE_RELATION 0.007047768206734534f     
+#define SHOULDER_RELATION 0.008809710258418167f  
+#define ELBOW_RELATION 0.008809710258418167f
+#define WRIST_RELATION 0.03435114503816794f
 
 struct MotorPins
 {
@@ -80,7 +74,7 @@ public:
     RobotState getState();
     RobotOdometry getOdometry();
     void setPidTunings(float kp, float kd, float ki);
-    void updatePid(uint32_t joint1_encoder_ticks, uint32_t joint2_encoder_ticks, uint32_t joint3_encoder_ticks,);
+    void updatePid(uint32_t joint1_encoder_ticks, uint32_t joint2_encoder_ticks, uint32_t joint3_encoder_ticks);
 
 private:
     float _kp;
