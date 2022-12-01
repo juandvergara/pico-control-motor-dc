@@ -279,7 +279,7 @@ int main()
         while (input_char != PICO_ERROR_TIMEOUT)
         {
             gpio_put(PICO_DEFAULT_LED_PIN, 1);
-            putchar(input_char);                        // Print user input in console
+            // putchar(input_char);                        // Print user input in console
             in_buffer[input_char_index++] = input_char; // Index user input to buffer array
             if (input_char == '/')
             {
@@ -289,9 +289,6 @@ int main()
                 joint2_sp = strtof(char_pt1 + 1, &char_pt2); // Conversion string (char) to float
                 joint3_sp = strtof(char_pt2 + 1, &char_pt3); // Add 1 to bring up the comma
                 break;
-            }
-            if(input_char == 'h'){
-                home();
             }
             elbow_joint.ref_position = joint1_sp;
             wrist_left_joint.ref_position = joint2_sp;
