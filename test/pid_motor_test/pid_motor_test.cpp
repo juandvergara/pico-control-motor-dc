@@ -40,7 +40,7 @@ float v3Prev = 0.0;
 uint32_t sample_time_ms = 10;
 float pid_rate;
 
-char in_buffer[500];
+char in_buffer[500] = {};
 uint16_t char_idx = 0;
 
 PID PID_Joint1(&elbow_joint.position, &elbow_joint.velocity, &elbow_joint.effort, &elbow_joint.ref_position, &elbow_joint.ref_velocity,
@@ -127,8 +127,6 @@ void home()
                     wrist_right_joint.velocity = 0;
                     wrist_left_joint.position = 0;
                     wrist_left_joint.velocity = 0;
-                    wrist_left_joint.ref_position = 90;
-                    wrist_right_joint.ref_position = 70;
                     printf("Home wrist yaw success! , \n");
                     break;
                 }
@@ -156,12 +154,14 @@ void home()
                 {
                     motor4.write(0.0);
                     motor5.write(0.0);
-                    encoder4.encoder_pos = 0;
-                    encoder5.encoder_pos = 0;
+                    encoder4.encoder_pos = -1820;
+                    encoder5.encoder_pos = -2200;
                     wrist_left_joint.position = 0;
                     wrist_left_joint.velocity = 0;
                     wrist_right_joint.position = 0;
                     wrist_right_joint.velocity = 0;
+                    wrist_left_joint.ref_position = 0;
+                    wrist_right_joint.ref_position = 0;
                     printf("Home wrist pitch success! , \n");
                     sleep_ms(100);
                     break;
@@ -279,7 +279,7 @@ int main()
         while (input_char != PICO_ERROR_TIMEOUT)
         {
             gpio_put(PICO_DEFAULT_LED_PIN, 1);
-            // putchar(input_char);                        // Print user input in console
+            putchar(input_char);                        // Print user input in console
             in_buffer[input_char_index++] = input_char; // Index user input to buffer array
             if (input_char == '/')
             {
@@ -291,8 +291,8 @@ int main()
                 break;
             }
             elbow_joint.ref_position = joint1_sp;
-            wrist_left_joint.ref_position = joint2_sp;
-            wrist_right_joint.ref_position = -joint3_sp;
+            wrist_left_joint.ref_position = joint2_sp + elbow_joint.ref_position;
+            wrist_right_joint.ref_position = -joint3_sp - elbow_joint.ref_position;
             input_char = getchar_timeout_us(0);
         }
         // gpio_put(LED_PIN, false);
@@ -301,8 +301,8 @@ int main()
         // printf("Position: J1: %.3f, J2: %.3f \n", elbow_joint.position, wrist_left_joint.position);
         // printf("Ef1: %.4f, \n", elbow_joint.effort);
         printf("%.4f, ", elbow_joint.position);
-        printf("%.4f, ", wrist_left_joint.position);
-        printf("%.4f \n", wrist_right_joint.position); /*
+        printf("%.4f, ", wrist_left_joint.position - elbow_joint.position);
+        printf("%.4f \n", wrist_right_joint.position + elbow_joint.position); /*
          printf("Pos2: %.4f\n \n", wrist_left_joint.position);*/
         sleep_ms(10);
         gpio_put(PICO_DEFAULT_LED_PIN, 0);
