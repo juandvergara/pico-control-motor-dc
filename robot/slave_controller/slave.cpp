@@ -11,8 +11,9 @@
 #define I2C_SCL_PIN 27
 #define LED_PIN 25
 
-#define ELBOW_RELATION 0.008809710258418167 // 360.0f / (80.0f * 127.7f * 4.0f)
-#define WRIST_RELATION 0.03435114503816794  // 360.0f * 23.0f / (80.0f * 65.5f * 32.0f) Cambiado por 360.0f / (80.0f * 65.5f * 2.0f)
+#define SHOULDER_RELATION 0.008809710258418167f // 360.0f / (80.0f * 127.7f * 4.0f)
+#define ELBOW_RELATION 0.008809710258418167f    // 360.0f / (80.0f * 127.7f * 4.0f)
+#define WRIST_RELATION 0.03435114503816794f     // 360.0f * 23.0f / (80.0f * 65.5f * 32.0f) Cambiado por 360.0f / (80.0f * 65.5f * 2.0f)
 
 static int SLAVE_ADDR = 0x15;
 
@@ -59,11 +60,11 @@ uint32_t sample_time_ms = 10;
 float pid_rate;
 
 PID PID_elbow(&elbow_joint.position, &elbow_joint.velocity, &elbow_joint.effort, &elbow_joint.ref_position, &elbow_joint.ref_velocity,
-               kp1, ki1, kd1, sample_time_ms);
+              kp1, ki1, kd1, sample_time_ms);
 PID PID_wrist_left(&wrist_left_joint.position, &wrist_left_joint.velocity, &wrist_left_joint.effort, &wrist_left_joint.ref_position, &wrist_left_joint.ref_velocity,
-               kp2, ki2, kd2, sample_time_ms);
+                   kp2, ki2, kd2, sample_time_ms);
 PID PID_wrist_right(&wrist_right_joint.position, &wrist_right_joint.velocity, &wrist_right_joint.effort, &wrist_right_joint.ref_position, &wrist_right_joint.ref_velocity,
-               kp2, ki2, kd2, sample_time_ms);
+                    kp2, ki2, kd2, sample_time_ms);
 
 uint32_t millis()
 {
@@ -104,7 +105,7 @@ void updatePid(int32_t joint1_encoder_ticks, int32_t joint2_encoder_ticks, int32
     float velocity_elbow = (position_elbow - elbow_joint.position) / pid_rate;
     float velocity_wrist_left = (position_wrist_left - wrist_left_joint.position) / pid_rate;
     float velocity_wrist_right = (position_wrist_right - wrist_right_joint.position) / pid_rate;
-    
+
     elbow_joint.position = position_elbow;
     wrist_left_joint.position = position_wrist_left;
     wrist_right_joint.position = position_wrist_right;
@@ -193,14 +194,16 @@ int main()
         i2c_read_raw_blocking(I2C_PORT, status_base, 4);
         i2c_read_raw_blocking(I2C_PORT, status_shoulder, 4);
 
-        elbow_sp = *(float *)&target_elbow;
-        wrist_left_sp = *(float *)&target_wrist_left;
-        wrist_right_sp = *(float *)&target_wrist_right;
         slidebase_position = *(float *)&status_slidebase;
         base_position = *(float *)&status_base;
         shoulder_position = *(float *)&status_shoulder;
+        elbow_sp = *(float *)&target_elbow;
+        wrist_left_sp = *(float *)&target_wrist_left;
+        wrist_right_sp = *(float *)&target_wrist_right;
 
-        elbow_joint.ref_position = round(elbow_sp / ELBOW_RELATION) * ELBOW_RELATION;
+        shoulder_position = round(shoulder_position / SHOULDER_RELATION) * SHOULDER_RELATION;
+
+        elbow_joint.ref_position = round(elbow_sp / ELBOW_RELATION) * ELBOW_RELATION + shoulder_position;
         wrist_left_joint.ref_position = round(wrist_left_sp / WRIST_RELATION) * WRIST_RELATION;
         wrist_right_joint.ref_position = -round(wrist_right_sp / WRIST_RELATION) * WRIST_RELATION;
         // READ I2C INFO TO EACH JOINT
@@ -211,8 +214,10 @@ int main()
         printf("Elbow: sp %.3f, pos: %.3f, \n", elbow_setpoint, elbow_position);
         printf("Wrist left: sp %.3f, pos: %.3f, \n", wrist_left_setpoint, wrist_left_position);
         printf("Wrist right: sp %.3f, pos: %.3f\n \n", wrist_right_setpoint, wrist_right_position);*/
-        printf("%.3f,%.3f,%.3f,%.3f,%.3f,%.3f", slidebase_position, base_position, shoulder_position, 
-               elbow_joint.position, wrist_left_joint.position, wrist_right_joint.position);
+        printf("%.3f,%.3f,%.3f,%.3f,%.3f,%.3f", slidebase_position, base_position, shoulder_position,
+               elbow_joint.position - shoulder_position,
+               wrist_left_joint.position - elbow_joint.position,
+               wrist_right_joint.position + elbow_joint.position);
         sleep_ms(20);
         gpio_put(PICO_DEFAULT_LED_PIN, 0);
     }
