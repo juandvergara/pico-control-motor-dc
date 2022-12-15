@@ -1,9 +1,17 @@
 #include "pico/stdlib.h"
 #include <cmath>
 #include <stdio.h>
+#include <string.h>
 #include "dc_motor_v2.h"
 #include "encoder.h"
 #include "pid_filter.h"
+
+#define COMMAND_POS 'p'
+#define COMMAND_VEL 'v'
+#define READ_ENCODER 'e'
+#define COMMAND_POS_VEL 'a'
+#define HOME 'h'
+#define SET_VEL_MODE 's'
 
 struct Joint
 {
@@ -40,8 +48,9 @@ float v3Prev = 0.0;
 uint32_t sample_time_ms = 10;
 float pid_rate;
 
-char in_buffer[500] = {};
-uint16_t char_idx = 0;
+
+float result[50];
+int user_input;
 
 PID PID_Joint1(&elbow_joint.position, &elbow_joint.velocity, &elbow_joint.effort, &elbow_joint.ref_position, &elbow_joint.ref_velocity,
                kp1, ki1, kd1, sample_time_ms);
@@ -53,6 +62,48 @@ PID PID_Joint3(&wrist_right_joint.position, &wrist_right_joint.velocity, &wrist_
 uint32_t millis()
 {
     return to_ms_since_boot(get_absolute_time());
+}
+
+void set_vel_mode(float mode, bool print_msg)
+{
+    if (mode == 1.0)
+    {
+        if (print_msg)
+            printf("Velocity control mode on \n");
+        PID_Joint1.set_gains(0.0, 0.0, kd1);
+        PID_Joint2.set_gains(0.0, 0.0, kd1);
+        PID_Joint3.set_gains(0.0, 0.0, kd1);
+    }
+    else if (mode == 0.0)
+    {
+        if (print_msg)
+            printf("Velocity control mode off \n");
+        elbow_joint.ref_position = elbow_joint.position;
+        wrist_left_joint.ref_position = wrist_left_joint.position;
+        wrist_right_joint.ref_position = wrist_right_joint.position;
+        PID_Joint1.set_gains(kp1, ki1, kd1);
+        PID_Joint2.set_gains(kp1, ki1, kd1);
+        PID_Joint3.set_gains(kp1, ki1, kd1);
+    }
+    else
+    {
+        if (print_msg)
+            printf("Wrong command! Set 1 to vel mode, 0 to pos mode \n");
+    }
+}
+
+void print_state_joints()
+{
+    printf("%.4f, ", elbow_joint.position);
+    printf("%.4f, ", wrist_left_joint.position - elbow_joint.position);
+    printf("%.4f \n", wrist_right_joint.position + elbow_joint.position);
+    printf("%.4f, ", elbow_joint.ref_velocity);
+    printf("%.4f, ", wrist_left_joint.ref_velocity - elbow_joint.ref_velocity);
+    printf("%.4f \n", wrist_right_joint.ref_velocity + elbow_joint.ref_velocity);
+    // printf("Entradas recibidas");
+    // printf("Effort: J1: %.3f, J2: %.3f, J3: %.3f \n", elbow_joint.effort, wrist_left_joint.effort, wrist_right_joint.effort);
+    // printf("Position: J1: %.3f, J2: %.3f \n", elbow_joint.position, wrist_left_joint.position);
+    // printf("Ef1: %.4f, \n", elbow_joint.effort);
 }
 
 void home()
@@ -173,6 +224,95 @@ void home()
     }
 }
 
+void command_callback(char *buffer, int size_buffer)
+{
+    char *current;
+    char *previous;
+    char *token = strtok(buffer, " ");
+    char command = *token;
+
+    switch (command)
+    {
+    case (COMMAND_POS):
+        printf("Set position goal was call\n");
+        token = strtok(NULL, " ");
+
+        result[0] = strtof(token, &previous);
+        printf("%.3f", result[0]);
+
+        for (int i = 0; i < 2; i++)
+        {
+            result[i + 1] = strtof(previous + 1, &current);
+            previous = current;
+            printf(", %.3f", result[i + 1]);
+        }
+        printf("\n");
+        elbow_joint.ref_position = result[0];
+        wrist_left_joint.ref_position = result[1] + elbow_joint.ref_position;
+        wrist_right_joint.ref_position = -result[2] - elbow_joint.ref_position;
+        break;
+
+    case (COMMAND_VEL):
+        printf("Set velocity goal was call\n");
+        token = strtok(NULL, " ");
+
+        result[0] = strtof(token, &previous);
+        printf("%.1f", result[0]);
+
+        for (int i = 0; i < size_buffer - 1; i++)
+        {
+            result[i + 1] = strtof(previous + 1, &current);
+            previous = current;
+            printf(", %.1f", result[i + 1]);
+        }
+        printf("\n");
+        elbow_joint.ref_velocity = result[0];
+        wrist_left_joint.ref_velocity = result[1] + elbow_joint.ref_velocity;
+        wrist_right_joint.ref_velocity = -result[2] - elbow_joint.ref_velocity;
+        break;
+    case (READ_ENCODER):
+
+        printf("Encoder callback \n");
+        print_state_joints();
+        break;
+    case (HOME):
+
+        printf("Homing... \n");
+        home();
+        break;
+    case (SET_VEL_MODE):
+        token = strtok(NULL, " ");
+        float mode;
+        mode = strtof(token, &previous);
+        set_vel_mode(mode, true);
+        break;
+    default:
+        printf("Invalid command \n");
+        break;
+    }
+}
+
+void process_user_input(int input_std)
+{
+    int input_char_index;
+    char in_buffer[50];
+    while (input_std != PICO_ERROR_TIMEOUT)
+    {
+        gpio_put(PICO_DEFAULT_LED_PIN, 1);
+        in_buffer[input_char_index++] = input_std;
+        if (input_std == '\n')
+        {
+            in_buffer[input_char_index] = 0;
+            input_char_index = 0;
+            int size = ((sizeof(in_buffer) / sizeof(in_buffer[0])) - 2) / 8;
+            command_callback(in_buffer, size);
+            break;
+        }
+        input_std = getchar_timeout_us(0);
+    }
+    gpio_put(PICO_DEFAULT_LED_PIN, 0);
+}
+
 void initRobot()
 {
     motor3.write(0.0);
@@ -230,7 +370,7 @@ void updatePid(int32_t joint1_encoder_ticks, int32_t joint2_encoder_ticks, int32
     motor5.write(-motor3_vel);
 }
 
-bool timerCallback(repeating_timer_t *rt)
+bool controller_timer_callback(repeating_timer_t *rt)
 {
     updatePid(int32_t(encoder3.encoder_pos), int32_t(encoder4.encoder_pos), int32_t(encoder5.encoder_pos));
     return true;
@@ -258,53 +398,14 @@ int main()
     home();
 
     repeating_timer_t timer;
-    if (!add_repeating_timer_ms(-sample_time_ms, timerCallback, NULL, &timer))
+    if (!add_repeating_timer_ms(-sample_time_ms, controller_timer_callback, NULL, &timer))
     {
         printf("Failure by not set timer!! \n");
     }
 
-    int input_char;
-    int input_char_index;
-    char *char_pt1;
-    char *char_pt2;
-    char *char_pt3;
-
-    float joint1_sp = 0.0;
-    float joint2_sp = 0.0;
-    float joint3_sp = 0.0;
-
     while (true)
     {
-        input_char = getchar_timeout_us(0); // Esperar la entrada del usuario
-        while (input_char != PICO_ERROR_TIMEOUT)
-        {
-            gpio_put(PICO_DEFAULT_LED_PIN, 1);
-            putchar(input_char);                        // Print user input in console
-            in_buffer[input_char_index++] = input_char; // Index user input to buffer array
-            if (input_char == '/')
-            {
-                in_buffer[input_char_index] = 0; // end of string
-                input_char_index = 0;
-                joint1_sp = strtof(in_buffer, &char_pt1);    // Conversion string (char) to float
-                joint2_sp = strtof(char_pt1 + 1, &char_pt2); // Conversion string (char) to float
-                joint3_sp = strtof(char_pt2 + 1, &char_pt3); // Add 1 to bring up the comma
-                break;
-            }
-            elbow_joint.ref_position = joint1_sp;
-            wrist_left_joint.ref_position = joint2_sp + elbow_joint.ref_position;
-            wrist_right_joint.ref_position = -joint3_sp - elbow_joint.ref_position;
-            input_char = getchar_timeout_us(0);
-        }
-        // gpio_put(LED_PIN, false);
-        // printf("Entradas recibidas");
-        // printf("Effort: J1: %.3f, J2: %.3f, J3: %.3f \n", elbow_joint.effort, wrist_left_joint.effort, wrist_right_joint.effort);
-        // printf("Position: J1: %.3f, J2: %.3f \n", elbow_joint.position, wrist_left_joint.position);
-        // printf("Ef1: %.4f, \n", elbow_joint.effort);
-        printf("%.4f, ", elbow_joint.position);
-        printf("%.4f, ", wrist_left_joint.position - elbow_joint.position);
-        printf("%.4f \n", wrist_right_joint.position + elbow_joint.position); /*
-         printf("Pos2: %.4f\n \n", wrist_left_joint.position);*/
-        sleep_ms(10);
-        gpio_put(PICO_DEFAULT_LED_PIN, 0);
+        user_input = getchar_timeout_us(0); // Esperar la entrada del usuario
+        process_user_input(user_input);
     }
 }
