@@ -1,5 +1,6 @@
 #include <cmath>
 #include <stdio.h>
+#include <string.h>
 #include "pico/stdlib.h"
 #include "hardware/i2c.h"
 #include "dc_motor_v2.h"
@@ -14,6 +15,14 @@
 #define SLIDEBASE_RELATION 0.008809710258418167f // 360.0f / (80.0f * 127.7f * 4.0f)
 #define BASE_RELATION 0.007047768206734534f      // 360.0f / (80.0f * 127.7f * 5.0f)
 #define SHOULDER_RELATION 0.008809710258418167f  // 360.0f / (80.0f * 127.7f * 4.0f)
+
+#define COMMAND_POS 'p'
+#define COMMAND_VEL 'v'
+#define READ_ENCODER 'e'
+#define COMMAND_POS_VEL 'a'
+#define HOME 'h'
+#define SET_VEL_MODE 's'
+#define SEND_SLAVE 'r'
 
 static int SLAVE_ADDR = 0x15;
 
@@ -52,19 +61,168 @@ float v1Prev = 0.0;
 float v2Prev = 0.0;
 float v3Prev = 0.0;
 
+float result[50];
+
 uint32_t sample_time_ms = 10;
 float pid_rate;
 
 PID PID_slidebase(&slidebase_joint.position, &slidebase_joint.velocity, &slidebase_joint.effort, &slidebase_joint.ref_position, &slidebase_joint.ref_velocity,
-               kp1, ki1, kd1, sample_time_ms);
+                  kp1, ki1, kd1, sample_time_ms);
 PID PID_base(&base_joint.position, &base_joint.velocity, &base_joint.effort, &base_joint.ref_position, &base_joint.ref_velocity,
-               kp2, ki2, kd2, sample_time_ms);
+             kp2, ki2, kd2, sample_time_ms);
 PID PID_shoulder(&shoulder_joint.position, &shoulder_joint.velocity, &shoulder_joint.effort, &shoulder_joint.ref_position, &shoulder_joint.ref_velocity,
-               kp2, ki2, kd2, sample_time_ms);
+                 kp2, ki2, kd2, sample_time_ms);
 
 uint32_t millis()
 {
     return to_ms_since_boot(get_absolute_time());
+}
+
+void set_vel_mode(float mode, bool print_msg)
+{
+    if (mode == 1.0)
+    {
+        if (print_msg)
+            printf("Velocity control mode on \n");
+        PID_slidebase.set_gains(0.0, 0.0, kd1);
+        PID_base.set_gains(0.0, 0.0, kd1);
+        PID_shoulder.set_gains(0.0, 0.0, kd1);
+    }
+    else if (mode == 0.0)
+    {
+        if (print_msg)
+            printf("Velocity control mode off \n");
+        slidebase_joint.ref_position = slidebase_joint.position;
+        base_joint.ref_position = base_joint.position;
+        shoulder_joint.ref_position = shoulder_joint.position;
+        PID_slidebase.set_gains(kp1, ki1, kd1);
+        PID_base.set_gains(kp1, ki1, kd1);
+        PID_shoulder.set_gains(kp1, ki1, kd1);
+    }
+    else
+    {
+        if (print_msg)
+            printf("Wrong command! Set 1 to vel mode, 0 to pos mode \n");
+    }
+}
+
+void print_state_joints(){
+    /*printf("Slide base: sp %.3f, pos: %.3f, \n", slidebase_joint.ref_position, slidebase_joint.position);
+    printf("Base: sp %.3f, pos: %.3f, \n", base_joint.ref_position, base_joint.position);
+    printf("Shoulder: sp %.3f, pos: %.3f\n \n", shoulder_joint.ref_position, shoulder_joint.position);*/
+}
+
+void send_info_slave()
+{
+    uint8_t *target_slave1;
+    target_slave1 = (uint8_t *)(&result[3]);
+    uint8_t *target_slave2;
+    target_slave2 = (uint8_t *)(&result[4]);
+    uint8_t *target_slave3;
+    target_slave3 = (uint8_t *)(&result[5]);
+
+    uint8_t *status_slidebase;
+    status_slidebase = (uint8_t *)(&slidebase_joint.position);
+    uint8_t *status_base;
+    status_base = (uint8_t *)(&base_joint.position);
+    uint8_t *status_shoulder;
+    status_shoulder = (uint8_t *)(&shoulder_joint.position);
+
+    uint8_t send_slave = SEND_SLAVE;
+
+    i2c_write_blocking(I2C_PORT, SLAVE_ADDR, &send_slave, 1, true);
+    sleep_ms(10);
+    i2c_write_blocking(I2C_PORT, SLAVE_ADDR, target_slave1, 4, false);
+    i2c_write_blocking(I2C_PORT, SLAVE_ADDR, target_slave2, 4, false);
+    i2c_write_blocking(I2C_PORT, SLAVE_ADDR, target_slave3, 4, false);
+    i2c_write_blocking(I2C_PORT, SLAVE_ADDR, status_slidebase, 4, false);
+    i2c_write_blocking(I2C_PORT, SLAVE_ADDR, status_base, 4, false);
+    i2c_write_blocking(I2C_PORT, SLAVE_ADDR, status_shoulder, 4, false);
+}
+
+void command_callback(char *buffer)
+{
+    char *current;
+    char *previous;
+    char *token = strtok(buffer, " ");
+    char command = *token;
+
+    switch (command)
+    {
+    case (COMMAND_POS):
+        printf("Set position goal was call\n");
+        token = strtok(NULL, " ");
+
+        result[0] = strtof(token, &previous);
+        printf("%.3f", result[0]);
+
+        for (int i = 0; i < 5; i++)
+        {
+            result[i + 1] = strtof(previous + 1, &current);
+            previous = current;
+            printf(", %.3f", result[i + 1]);
+        }
+        printf("\n");
+        slidebase_joint.ref_position = result[0];
+        base_joint.ref_position = round(result[1] / BASE_RELATION) * BASE_RELATION;
+        shoulder_joint.ref_position = round(result[2] / SHOULDER_RELATION) * SHOULDER_RELATION;
+        send_info_slave();
+        break;
+
+    case (COMMAND_VEL):
+        printf("Set velocity goal was call\n");
+        token = strtok(NULL, " ");
+
+        result[0] = strtof(token, &previous);
+        printf("%.1f", result[0]);
+
+        for (int i = 0; i < 5 - 1; i++)
+        {
+            result[i + 1] = strtof(previous + 1, &current);
+            previous = current;
+            printf(", %.1f", result[i + 1]);
+        }
+        printf("\n");
+        slidebase_joint.ref_velocity = result[0];
+        base_joint.ref_velocity = result[1];
+        shoulder_joint.ref_velocity = result[2];
+        send_info_slave();
+        break;
+    case (READ_ENCODER):
+
+        printf("Encoder callback \n");
+        print_state_joints();
+        break;
+    case (SET_VEL_MODE):
+        token = strtok(NULL, " ");
+        float mode;
+        mode = strtof(token, &previous);
+        set_vel_mode(mode, true);
+        break;
+    default:
+        printf("Invalid command \n");
+        break;
+    }
+}
+
+void process_user_input(int input_std)
+{
+    int input_char_index;
+    char in_buffer[50];
+    while (input_std != PICO_ERROR_TIMEOUT)
+    {
+        gpio_put(PICO_DEFAULT_LED_PIN, 1);
+        in_buffer[input_char_index++] = input_std;
+        if (input_std == '\n')
+        {
+            in_buffer[input_char_index] = 0;
+            input_char_index = 0;
+            command_callback(in_buffer);
+            break;
+        }
+        input_std = getchar_timeout_us(0);
+    }
+    gpio_put(PICO_DEFAULT_LED_PIN, 0);
 }
 
 void initRobot()
@@ -101,7 +259,7 @@ void updatePid(int32_t joint1_encoder_ticks, int32_t joint2_encoder_ticks, int32
     float velocity_slidebase = (position_slidebase - slidebase_joint.position) / pid_rate;
     float velocity_base = (position_base - base_joint.position) / pid_rate;
     float velocity_shoulder = (position_shoulder - shoulder_joint.position) / pid_rate;
-    
+
     slidebase_joint.position = position_slidebase;
     base_joint.position = position_base;
     shoulder_joint.position = position_shoulder;
@@ -165,73 +323,12 @@ int main()
         printf("Failure by not set timer!! \n");
     }
 
-    uint8_t target_slave = 0;
-    char in_buffer[500];
     int input_char;
-    int input_char_index;
-    char *char_pt1;
-    char *char_pt2;
-    char *char_pt3;
-    char *char_pt4;
-    char *char_pt5;
-
-    float slidebase_sp = 0.0;
-    float base_sp = 0.0;
-    float shoulder_sp = 0.0;
-    float elbow_sp = 0;
-    float wrist_left_sp = 0;
-    float wrist_right_sp = 0;
 
     while (true)
     {
         input_char = getchar_timeout_us(0);
-        while (input_char != PICO_ERROR_TIMEOUT)
-        {
-            gpio_put(PICO_DEFAULT_LED_PIN, 1);          // Print user input in console
-            putchar(input_char);
-            in_buffer[input_char_index++] = input_char; // Index user input to buffer array
-            if (input_char == '/')
-            {
-                in_buffer[input_char_index] = 0;
-                input_char_index = 0;
-                slidebase_sp = strtof(in_buffer, &char_pt1); // Conversion string (char) to float
-                base_sp = strtof(char_pt1 + 1, &char_pt2);
-                shoulder_sp = strtof(char_pt2 + 1, &char_pt3); // Add 1 to bring up the comma
-                elbow_sp = strtof(char_pt3 + 1, &char_pt4);
-                wrist_left_sp = strtof(char_pt4 + 1, &char_pt5);
-                wrist_right_sp = strtof(char_pt5 + 1, NULL);
-                break;
-            }
-            slidebase_joint.ref_position = slidebase_sp;
-            base_joint.ref_position = round(base_sp / BASE_RELATION) * BASE_RELATION;
-            shoulder_joint.ref_position = round(shoulder_sp / SHOULDER_RELATION) * SHOULDER_RELATION;
-            input_char = getchar_timeout_us(0);
-        }
-
-        uint8_t *target_slave1;
-        target_slave1 = (uint8_t *)(&elbow_sp);
-        uint8_t *target_slave2;
-        target_slave2 = (uint8_t *)(&wrist_left_sp);
-        uint8_t *target_slave3;
-        target_slave3 = (uint8_t *)(&wrist_right_sp);
-
-        uint8_t *status_slidebase;
-        status_slidebase = (uint8_t *)(&slidebase_joint.position);
-        uint8_t *status_base;
-        status_base = (uint8_t *)(&base_joint.position);
-        uint8_t *status_shoulder;
-        status_shoulder = (uint8_t *)(&shoulder_joint.position);
-
-        i2c_write_blocking(I2C_PORT, SLAVE_ADDR, target_slave1, 4, false);
-        i2c_write_blocking(I2C_PORT, SLAVE_ADDR, target_slave2, 4, false);
-        i2c_write_blocking(I2C_PORT, SLAVE_ADDR, target_slave3, 4, false);
-        i2c_write_blocking(I2C_PORT, SLAVE_ADDR, status_slidebase, 4, false);
-        i2c_write_blocking(I2C_PORT, SLAVE_ADDR, status_base, 4, false);
-        i2c_write_blocking(I2C_PORT, SLAVE_ADDR, status_shoulder, 4, false);
-
-        /*printf("Slide base: sp %.3f, pos: %.3f, \n", slidebase_joint.ref_position, slidebase_joint.position);
-        printf("Base: sp %.3f, pos: %.3f, \n", base_joint.ref_position, base_joint.position);
-        printf("Shoulder: sp %.3f, pos: %.3f\n \n", shoulder_joint.ref_position, shoulder_joint.position);*/
+        process_user_input(input_char);
         sleep_ms(20);
         gpio_put(PICO_DEFAULT_LED_PIN, 0);
     }
