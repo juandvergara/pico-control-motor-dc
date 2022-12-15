@@ -92,8 +92,7 @@ void set_vel_mode(float mode, bool print_msg)
     }
 }
 
-void print_state_joints()
-{
+void print_state_joints() {
     printf("%.4f, ", elbow_joint.position);
     printf("%.4f, ", wrist_left_joint.position - elbow_joint.position);
     printf("%.4f \n", wrist_right_joint.position + elbow_joint.position);
