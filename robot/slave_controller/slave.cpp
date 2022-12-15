@@ -14,6 +14,7 @@
 #define SHOULDER_RELATION 0.008809710258418167f // 360.0f / (80.0f * 127.7f * 4.0f)
 #define ELBOW_RELATION 0.008809710258418167f    // 360.0f / (80.0f * 127.7f * 4.0f)
 #define WRIST_RELATION 0.03435114503816794f     // 360.0f * 23.0f / (80.0f * 65.5f * 32.0f) Cambiado por 360.0f / (80.0f * 65.5f * 2.0f)
+#define HEAR_FROM_MASTER 'r'
 
 static int SLAVE_ADDR = 0x15;
 
@@ -184,15 +185,28 @@ int main()
     float wrist_left_sp = 0;
     float wrist_right_sp = 0;
 
+    uint8_t command;
+
     while (true)
     {
         gpio_put(PICO_DEFAULT_LED_PIN, 1);
-        i2c_read_raw_blocking(I2C_PORT, target_elbow, 4);
-        i2c_read_raw_blocking(I2C_PORT, target_wrist_left, 4);
-        i2c_read_raw_blocking(I2C_PORT, target_wrist_right, 4);
-        i2c_read_raw_blocking(I2C_PORT, status_slidebase, 4);
-        i2c_read_raw_blocking(I2C_PORT, status_base, 4);
-        i2c_read_raw_blocking(I2C_PORT, status_shoulder, 4);
+
+        i2c_read_raw_blocking(I2C_PORT, &command, 1);
+        if (command == HEAR_FROM_MASTER)
+        {
+            printf("I hear from master \n");
+            i2c_read_raw_blocking(I2C_PORT, target_elbow, 4);
+            i2c_read_raw_blocking(I2C_PORT, target_wrist_left, 4);
+            i2c_read_raw_blocking(I2C_PORT, target_wrist_right, 4);
+            i2c_read_raw_blocking(I2C_PORT, status_slidebase, 4);
+            i2c_read_raw_blocking(I2C_PORT, status_base, 4);
+            i2c_read_raw_blocking(I2C_PORT, status_shoulder, 4);
+            command = ' ';
+            printf("%.3f,%.3f,%.3f,%.3f,%.3f,%.3f", slidebase_position, base_position, shoulder_position,
+                   elbow_joint.position + shoulder_position,
+                   wrist_left_joint.position + elbow_joint.position,
+                   wrist_right_joint.position - elbow_joint.position);
+        }
 
         slidebase_position = *(float *)&status_slidebase;
         base_position = *(float *)&status_base;
@@ -203,9 +217,9 @@ int main()
 
         shoulder_position = round(shoulder_position / SHOULDER_RELATION) * SHOULDER_RELATION;
 
-        elbow_joint.ref_position = round(elbow_sp / ELBOW_RELATION) * ELBOW_RELATION + shoulder_position;
-        wrist_left_joint.ref_position = round(wrist_left_sp / WRIST_RELATION) * WRIST_RELATION;
-        wrist_right_joint.ref_position = -round(wrist_right_sp / WRIST_RELATION) * WRIST_RELATION;
+        elbow_joint.ref_position = round(elbow_sp / ELBOW_RELATION) * ELBOW_RELATION - shoulder_position;
+        wrist_left_joint.ref_position = round(wrist_left_sp / WRIST_RELATION) * WRIST_RELATION + elbow_sp;
+        wrist_right_joint.ref_position = -round(wrist_right_sp / WRIST_RELATION) * WRIST_RELATION - elbow_sp;
         // READ I2C INFO TO EACH JOINT
 
         /*printf("Slide base: pos: %.3f, \n", slidebase_position);
@@ -214,10 +228,6 @@ int main()
         printf("Elbow: sp %.3f, pos: %.3f, \n", elbow_setpoint, elbow_position);
         printf("Wrist left: sp %.3f, pos: %.3f, \n", wrist_left_setpoint, wrist_left_position);
         printf("Wrist right: sp %.3f, pos: %.3f\n \n", wrist_right_setpoint, wrist_right_position);*/
-        printf("%.3f,%.3f,%.3f,%.3f,%.3f,%.3f", slidebase_position, base_position, shoulder_position,
-               elbow_joint.position - shoulder_position,
-               wrist_left_joint.position - elbow_joint.position,
-               wrist_right_joint.position + elbow_joint.position);
         sleep_ms(20);
         gpio_put(PICO_DEFAULT_LED_PIN, 0);
     }
