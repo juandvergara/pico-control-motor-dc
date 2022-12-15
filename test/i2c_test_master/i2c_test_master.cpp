@@ -15,6 +15,8 @@
 #define COMMAND_POS 'p'
 #define COMMAND_VEL 'v'
 #define READ_ENCODER 'e'
+#define COMMAND_POS_VEL 'a'
+#define HOME 'h'
 
 static int SLAVE_ADDR = 0x15;
 uint8_t times_led = 0;
@@ -25,16 +27,12 @@ int input_char_index;
 int input_char;
 float result[50];
 
-void function_callback(char *str, int size)
+void function_callback(char *buffer, int size_buffer)
 {
-
-    char *token = strtok(str, " ");
-    char command = *token;
-
-    printf("Command is %c \n", command);
-
     char *current;
     char *previous;
+    char *token = strtok(buffer, " ");
+    char command = *token;
 
     switch (command)
     {
@@ -43,14 +41,15 @@ void function_callback(char *str, int size)
         token = strtok(NULL, " ");
 
         result[0] = strtof(token, &previous);
-        printf("%.1f \n", result[0]);
+        printf("%.1f", result[0]);
 
-        for (int i = 0; i < size - 1; i++)
+        for (int i = 0; i < size_buffer - 1; i++)
         {
             result[i + 1] = strtof(previous + 1, &current);
             previous = current;
-            printf("%.1f \n", result[i + 1]);
+            printf(", %.1f", result[i + 1]);
         }
+        printf("\n");
         break;
 
     case (COMMAND_VEL):
@@ -58,14 +57,15 @@ void function_callback(char *str, int size)
         token = strtok(NULL, " ");
 
         result[0] = strtof(token, &previous);
-        printf("%.1f \n", result[0]);
+        printf("%.1f", result[0]);
 
-        for (int i = 0; i < size - 1; i++)
+        for (int i = 0; i < size_buffer - 1; i++)
         {
             result[i + 1] = strtof(previous + 1, &current);
             previous = current;
-            printf("%.1f \n", result[i + 1]);
+            printf(", %.1f", result[i + 1]);
         }
+        printf("\n");
         break;
     case (READ_ENCODER):
 
@@ -77,9 +77,8 @@ void function_callback(char *str, int size)
     }
 }
 
-void processMsg(int input_std)
+void waiting_input(int input_std)
 {
-    char *char_pt1;
     while (input_std != PICO_ERROR_TIMEOUT)
     {
         gpio_put(PICO_DEFAULT_LED_PIN, 1);
@@ -88,14 +87,7 @@ void processMsg(int input_std)
         {
             in_buffer[input_char_index] = 0;
             input_char_index = 0;
-            int size = ((sizeof(in_buffer) / sizeof(in_buffer[0])) - 2) / 8;
-            printf("Size of buffer %d", sizeof(in_buffer));
-            printf("Size of 1st element buffer %d", sizeof(in_buffer[0]));
-            function_callback(in_buffer, size);
-            // in_buffer[input_char_index] = 0;
-            // input_char_index = 0;
-            // joint1_sp = strtof(in_buffer, &char_pt1);
-            // times_led = uint8_t(joint1_sp);
+            times_led = uint8_t(strtof(in_buffer, NULL));
             break;
         }
         input_std = getchar_timeout_us(0);
@@ -128,15 +120,16 @@ int main()
     {
         input_char = getchar_timeout_us(0); // Esperar la entrada del usuario
 
-        processMsg(input_char);
+        waiting_input(input_char);
 
-        // if (times_led == 6)
-        // {
-        //     i2c_write_blocking(I2C_PORT, SLAVE_ADDR, &read, 1, true);
-        //     printf("Sending slave msg\n");
-        //     times_led = 0;
-        // }
+        if (times_led == 6)
+        {
+            i2c_write_blocking(I2C_PORT, SLAVE_ADDR, &read, 1, true);
+            printf("Sending slave msg\n");
+            times_led = 0;
+        }
+        sleep_ms(10);
+        // printf("Times LED %d \n", times_led);
         gpio_put(PICO_DEFAULT_LED_PIN, 0);
-        // printf("im hearing...! \n");
     }
 }
