@@ -26,7 +26,7 @@ void PID::set_gains(float kp, float ki, float kd)
         return;
 
     float sample_time_s = (float)_sample_time_ms / 1000.0f;
-    printf("pid sample time: %f [s]", sample_time_s);
+    printf("pid set p: %f, i: %f, d: %f. Rate: %f [s] \n", kp, ki, kd, sample_time_s);
 
     _kp = kp;
     //_ki = ki * sample_time_s;
