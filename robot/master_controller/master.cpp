@@ -22,6 +22,7 @@
 #define COMMAND_POS_VEL 'a'
 #define HOME 'h'
 #define SET_VEL_MODE 's'
+#define UNSET_VEL_MODE 'n'
 #define SEND_SLAVE 'r'
 
 static int SLAVE_ADDR = 0x15;
@@ -62,6 +63,10 @@ float v2Prev = 0.0;
 float v3Prev = 0.0;
 
 float result[50];
+uint8_t command_slave;
+
+uint8_t *target_slave1, *target_slave2, *target_slave3;
+uint8_t *status_slidebase, *status_base, *status_shoulder;
 
 uint32_t sample_time_ms = 10;
 float pid_rate;
@@ -82,6 +87,7 @@ void set_vel_mode(float mode, bool print_msg)
 {
     if (mode == 1.0)
     {
+        command_slave = SET_VEL_MODE;
         if (print_msg)
             printf("Velocity control mode on \n");
         PID_slidebase.set_gains(0.0, 0.0, kd1);
@@ -90,6 +96,7 @@ void set_vel_mode(float mode, bool print_msg)
     }
     else if (mode == 0.0)
     {
+        command_slave = UNSET_VEL_MODE;
         if (print_msg)
             printf("Velocity control mode off \n");
         slidebase_joint.ref_position = slidebase_joint.position;
@@ -106,38 +113,32 @@ void set_vel_mode(float mode, bool print_msg)
     }
 }
 
-void print_state_joints(){
-    /*printf("Slide base: sp %.3f, pos: %.3f, \n", slidebase_joint.ref_position, slidebase_joint.position);
+void print_state_joints()
+{
+    printf("Slide base: sp %.3f, pos: %.3f, \n", slidebase_joint.ref_position, slidebase_joint.position);
     printf("Base: sp %.3f, pos: %.3f, \n", base_joint.ref_position, base_joint.position);
-    printf("Shoulder: sp %.3f, pos: %.3f\n \n", shoulder_joint.ref_position, shoulder_joint.position);*/
+    printf("Shoulder: sp %.3f, pos: %.3f\n \n", shoulder_joint.ref_position, shoulder_joint.position);
 }
 
-void send_info_slave()
+void send_info_slave(float *result, bool pos_mode)
 {
-    uint8_t *target_slave1;
+    // printf("Sending to slave %.5f, %.5f, %.5f \n", result[3], result[4], result[5]);
     target_slave1 = (uint8_t *)(&result[3]);
-    uint8_t *target_slave2;
     target_slave2 = (uint8_t *)(&result[4]);
-    uint8_t *target_slave3;
     target_slave3 = (uint8_t *)(&result[5]);
 
-    uint8_t *status_slidebase;
-    status_slidebase = (uint8_t *)(&slidebase_joint.position);
-    uint8_t *status_base;
-    status_base = (uint8_t *)(&base_joint.position);
-    uint8_t *status_shoulder;
-    status_shoulder = (uint8_t *)(&shoulder_joint.position);
-
-    uint8_t send_slave = SEND_SLAVE;
-
-    i2c_write_blocking(I2C_PORT, SLAVE_ADDR, &send_slave, 1, true);
-    sleep_ms(10);
-    i2c_write_blocking(I2C_PORT, SLAVE_ADDR, target_slave1, 4, false);
-    i2c_write_blocking(I2C_PORT, SLAVE_ADDR, target_slave2, 4, false);
-    i2c_write_blocking(I2C_PORT, SLAVE_ADDR, target_slave3, 4, false);
-    i2c_write_blocking(I2C_PORT, SLAVE_ADDR, status_slidebase, 4, false);
-    i2c_write_blocking(I2C_PORT, SLAVE_ADDR, status_base, 4, false);
-    i2c_write_blocking(I2C_PORT, SLAVE_ADDR, status_shoulder, 4, false);
+    if (pos_mode)
+    {
+        status_slidebase = (uint8_t *)(&slidebase_joint.position);
+        status_base = (uint8_t *)(&base_joint.position);
+        status_shoulder = (uint8_t *)(&shoulder_joint.position);
+    }
+    else
+    {
+        status_slidebase = (uint8_t *)(&slidebase_joint.velocity);
+        status_base = (uint8_t *)(&base_joint.velocity);
+        status_shoulder = (uint8_t *)(&shoulder_joint.velocity);
+    }
 }
 
 void command_callback(char *buffer)
@@ -154,19 +155,20 @@ void command_callback(char *buffer)
         token = strtok(NULL, " ");
 
         result[0] = strtof(token, &previous);
-        printf("%.3f", result[0]);
+        // printf("%.3f", result[0]);
 
         for (int i = 0; i < 5; i++)
         {
             result[i + 1] = strtof(previous + 1, &current);
             previous = current;
-            printf(", %.3f", result[i + 1]);
+            // printf(", %.3f", result[i + 1]);
         }
-        printf("\n");
+        // printf("\n");
         slidebase_joint.ref_position = result[0];
         base_joint.ref_position = round(result[1] / BASE_RELATION) * BASE_RELATION;
         shoulder_joint.ref_position = round(result[2] / SHOULDER_RELATION) * SHOULDER_RELATION;
-        send_info_slave();
+        command_slave = COMMAND_POS;
+        send_info_slave(result, true);
         break;
 
     case (COMMAND_VEL):
@@ -186,12 +188,14 @@ void command_callback(char *buffer)
         slidebase_joint.ref_velocity = result[0];
         base_joint.ref_velocity = result[1];
         shoulder_joint.ref_velocity = result[2];
-        send_info_slave();
+        command_slave = COMMAND_VEL;
+        send_info_slave(result, false);
         break;
     case (READ_ENCODER):
 
         printf("Encoder callback \n");
-        print_state_joints();
+        // print_state_joints();
+        command_slave = READ_ENCODER;
         break;
     case (SET_VEL_MODE):
         token = strtok(NULL, " ");
@@ -329,7 +333,15 @@ int main()
     {
         input_char = getchar_timeout_us(0);
         process_user_input(input_char);
-        sleep_ms(20);
+        i2c_write_blocking(I2C_PORT, SLAVE_ADDR, &command_slave, 1, true);
+        i2c_write_blocking(I2C_PORT, SLAVE_ADDR, target_slave1, 4, true);
+        i2c_write_blocking(I2C_PORT, SLAVE_ADDR, target_slave2, 4, false);
+        i2c_write_blocking(I2C_PORT, SLAVE_ADDR, target_slave3, 4, false);
+        i2c_write_blocking(I2C_PORT, SLAVE_ADDR, status_slidebase, 4, false);
+        i2c_write_blocking(I2C_PORT, SLAVE_ADDR, status_base, 4, false);
+        i2c_write_blocking(I2C_PORT, SLAVE_ADDR, status_shoulder, 4, false);
+        if(command_slave == READ_ENCODER) command_slave = ' ';
         gpio_put(PICO_DEFAULT_LED_PIN, 0);
+        sleep_ms(10);
     }
 }
