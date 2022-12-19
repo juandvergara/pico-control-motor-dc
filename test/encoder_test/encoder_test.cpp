@@ -5,7 +5,7 @@
 #include "encoder.h"
 
 // MASTER
-
+/*
 Encoder encoder_m0(M0_ENC_A_PIN, M0_ENC_B_PIN);
 Encoder encoder_m1(M1_ENC_A_PIN, M1_ENC_B_PIN);
 Encoder encoder_m2(M2_ENC_A_PIN, M2_ENC_B_PIN);
@@ -39,9 +39,9 @@ int main()
         sleep_ms(100);
     }
 }
-
+*/
 // SLAVE 
-/*
+
 Encoder encoder_m3(M3_ENC_A_PIN, M3_ENC_B_PIN);
 Encoder encoder_m4(M4_ENC_A_PIN, M4_ENC_B_PIN);
 Encoder encoder_m5(M5_ENC_A_PIN, M5_ENC_B_PIN);
@@ -74,4 +74,4 @@ int main()
         printf("M3: %f, M4: %f, M5: %f\n", float(encoder_m3.encoder_pos), float(encoder_m4.encoder_pos), float(encoder_m5.encoder_pos));
         sleep_ms(100);
     }
-}*/
+}
