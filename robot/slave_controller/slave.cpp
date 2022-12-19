@@ -13,7 +13,7 @@
 
 #define SHOULDER_RELATION 0.008809710258418167f // 360.0f / (80.0f * 127.7f * 4.0f)
 #define ELBOW_RELATION 0.008809710258418167f    // 360.0f / (80.0f * 127.7f * 4.0f)
-#define WRIST_RELATION 0.03435114503816794f     // 360.0f * 23.0f / (80.0f * 65.5f * 32.0f) Cambiado por 360.0f / (80.0f * 65.5f * 2.0f)
+#define WRIST_RELATION 0.038643194504079006f    // 0.03435114503816794f     // 0.03864325091758399f 360.0f / (80.0f * 65.5f * 2.0f)
 
 #define PRINT_STATE 'e'
 #define COMMAND_POS 'p'
@@ -172,10 +172,10 @@ void encoders_callback(uint gpio, uint32_t events)
 
 void print_state()
 {
-    printf("%.3f,%.3f,%.3f,%.3f,%.3f,%.3f \n", slidebase_status, base_status, shoulder_status,
-           elbow_joint.position + shoulder_status,
-           wrist_left_joint.position,
-           wrist_right_joint.position);
+    printf("%.3f,%.3f,%.3f,%.3f,%.3f,%.3f \n", slidebase_status, -base_status, shoulder_status,
+           -(elbow_joint.position + shoulder_status),
+           (wrist_right_joint.position - wrist_left_joint.position)/2.0 - shoulder_status,
+           (wrist_left_joint.position + wrist_right_joint.position)/2.0);
 
     /*printf("Slide base: pos: %.3f, \n", slidebase_status);
     printf("Base: pos: %.3f, \n", base_status);
@@ -190,27 +190,25 @@ void process_command(uint8_t cmd)
     switch (cmd)
     {
     case (COMMAND_POS):
-        shoulder_status = round(shoulder_status / SHOULDER_RELATION) * SHOULDER_RELATION;
-        elbow_joint.ref_position = round(elbow_sp / ELBOW_RELATION) * ELBOW_RELATION - shoulder_status;
+        elbow_joint.ref_position = -round(elbow_sp / ELBOW_RELATION) * ELBOW_RELATION;
         wrist_left_joint.ref_position = round(wrist_left_sp / WRIST_RELATION) * WRIST_RELATION + elbow_joint.ref_position;
-        wrist_right_joint.ref_position = -round(wrist_right_sp / WRIST_RELATION) * WRIST_RELATION - elbow_joint.ref_position;
+        wrist_right_joint.ref_position = round(wrist_right_sp / WRIST_RELATION) * WRIST_RELATION - elbow_joint.ref_position;
         break;
 
     case (COMMAND_VEL):
-        shoulder_status = round(shoulder_status / SHOULDER_RELATION) * SHOULDER_RELATION;
-        elbow_joint.ref_velocity = round(elbow_sp / ELBOW_RELATION) * ELBOW_RELATION - shoulder_status;
+        elbow_joint.ref_velocity = -round(elbow_sp / ELBOW_RELATION) * ELBOW_RELATION;
         wrist_left_joint.ref_velocity = round(wrist_left_sp / WRIST_RELATION) * WRIST_RELATION + elbow_joint.ref_velocity;
-        wrist_right_joint.ref_velocity = -round(wrist_right_sp / WRIST_RELATION) * WRIST_RELATION - elbow_joint.ref_velocity;
+        wrist_right_joint.ref_velocity = round(wrist_right_sp / WRIST_RELATION) * WRIST_RELATION + elbow_joint.ref_velocity;
         break;
     case (PRINT_STATE):
         print_state();
         break;
-    // case (SET_VEL_MODE):
-    //     set_vel_mode(true);
-    //     break;
-    // case (UNSET_VEL_MODE):
-    //     set_vel_mode(false);
-    //     break;
+        // case (SET_VEL_MODE):
+        //     set_vel_mode(true);
+        //     break;
+        // case (UNSET_VEL_MODE):
+        //     set_vel_mode(false);
+        //     break;
     }
 }
 
@@ -265,13 +263,16 @@ int main()
         slidebase_status = *(float *)&status_slidebase;
         base_status = *(float *)&status_base;
         shoulder_status = *(float *)&status_shoulder;
-        elbow_sp = *(float *)&target_elbow;
-        wrist_left_sp = *(float *)&target_wrist_left;
-        wrist_right_sp = *(float *)&target_wrist_right;
+        elbow_sp = *(float *)&target_elbow + shoulder_status;
+        // wrist_left_sp = *(float *)&target_wrist_left;
+        // wrist_right_sp = *(float *)&target_wrist_right;
+
+        wrist_left_sp = *(float *)&target_wrist_right - *(float *)&target_wrist_left;
+        wrist_right_sp = *(float *)&target_wrist_right + *(float *)&target_wrist_left;
 
         process_command(command);
 
-        sleep_ms(10);
         gpio_put(PICO_DEFAULT_LED_PIN, 0);
+        sleep_ms(10);
     }
 }
