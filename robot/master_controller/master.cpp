@@ -165,7 +165,7 @@ void command_callback(char *buffer)
         }
         // printf("\n");
         slidebase_joint.ref_position = result[0];
-        base_joint.ref_position = round(result[1] / BASE_RELATION) * BASE_RELATION;
+        base_joint.ref_position = -round(result[1] / BASE_RELATION) * BASE_RELATION;
         shoulder_joint.ref_position = round(result[2] / SHOULDER_RELATION) * SHOULDER_RELATION;
         command_slave = COMMAND_POS;
         send_info_slave(result, true);
