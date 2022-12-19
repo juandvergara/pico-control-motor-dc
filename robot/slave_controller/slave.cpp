@@ -174,7 +174,8 @@ void print_state()
 {
     printf("%.3f,%.3f,%.3f,%.3f,%.3f,%.3f \n", slidebase_status, -base_status, shoulder_status,
            -(elbow_joint.position + shoulder_status),
-           (wrist_right_joint.position - wrist_left_joint.position)/2.0 - shoulder_status,
+           (wrist_right_joint.position - wrist_left_joint.position)/2.0 - shoulder_status
+           + (elbow_joint.position + shoulder_status),
            (wrist_left_joint.position + wrist_right_joint.position)/2.0);
 
     /*printf("Slide base: pos: %.3f, \n", slidebase_status);
