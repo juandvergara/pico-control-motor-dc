@@ -1,6 +1,7 @@
 #include <cmath>
 #include <stdio.h>
 #include "pico/stdlib.h"
+#include "pico/multicore.h"
 #include "hardware/i2c.h"
 #include "dc_motor_v2.h"
 #include "encoder.h"
@@ -213,31 +214,7 @@ void process_command(uint8_t cmd)
     }
 }
 
-int main()
-{
-    stdio_init_all();
-    printf("Slave control");
-
-    i2c_init(I2C_PORT, 100 * 1000);
-    i2c_set_slave_mode(I2C_PORT, true, SLAVE_ADDR);
-    gpio_set_function(I2C_SDA_PIN, GPIO_FUNC_I2C);
-    gpio_set_function(I2C_SCL_PIN, GPIO_FUNC_I2C);
-    gpio_pull_up(I2C_SDA_PIN);
-    gpio_pull_up(I2C_SCL_PIN);
-
-    gpio_init(PICO_DEFAULT_LED_PIN);
-    gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
-    initRobot();
-
-    gpio_set_irq_enabled_with_callback(M3_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &encoders_callback);
-    gpio_set_irq_enabled_with_callback(M4_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &encoders_callback);
-    gpio_set_irq_enabled_with_callback(M5_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &encoders_callback);
-
-    repeating_timer_t timer;
-    if (!add_repeating_timer_ms(-sample_time_ms, timerCallback, NULL, &timer))
-    {
-        printf("Failure by not set timer!! \n");
-    }
+void core1_entry(){
 
     uint8_t target_elbow[4] = {0, 0, 0, 0};
     uint8_t target_wrist_left[4] = {0, 0, 0, 0};
@@ -274,6 +251,45 @@ int main()
         process_command(command);
 
         gpio_put(PICO_DEFAULT_LED_PIN, 0);
-        sleep_ms(10);
+        sleep_ms(20);
+    }
+}
+
+int main()
+{
+    stdio_init_all();
+    printf("Slave control");
+
+    i2c_init(I2C_PORT, 100 * 1500);
+    i2c_set_slave_mode(I2C_PORT, true, SLAVE_ADDR);
+    gpio_set_function(I2C_SDA_PIN, GPIO_FUNC_I2C);
+    gpio_set_function(I2C_SCL_PIN, GPIO_FUNC_I2C);
+    gpio_pull_up(I2C_SDA_PIN);
+    gpio_pull_up(I2C_SCL_PIN);
+
+    gpio_init(PICO_DEFAULT_LED_PIN);
+    gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
+    initRobot();
+
+    multicore_launch_core1(core1_entry);
+    sleep_ms(500);
+
+    gpio_set_irq_enabled_with_callback(M3_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &encoders_callback);
+    gpio_set_irq_enabled_with_callback(M4_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &encoders_callback);
+    gpio_set_irq_enabled_with_callback(M5_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &encoders_callback);
+
+    repeating_timer_t timer;
+    if (!add_repeating_timer_ms(-sample_time_ms, timerCallback, NULL, &timer))
+    {
+        printf("Failure by not set timer!! \n");
+    }
+
+
+    while (true)
+    {
+        gpio_put(PICO_DEFAULT_LED_PIN, 1);
+        sleep_ms(20);
+        gpio_put(PICO_DEFAULT_LED_PIN, 0);
+        sleep_ms(20);
     }
 }
