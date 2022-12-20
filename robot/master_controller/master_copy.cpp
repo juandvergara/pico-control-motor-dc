@@ -305,7 +305,6 @@ void encoders_callback(uint gpio, uint32_t events)
 
 void core1_entry()
 {
-    
     while (true)
     {
         i2c_write_blocking(I2C_PORT, SLAVE_ADDR, &command_slave, 1, true);
