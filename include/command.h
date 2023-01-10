@@ -1,0 +1,10 @@
+#define COMMAND_POS 'p'
+#define COMMAND_VEL 'v'
+#define READ_ENCODER 'e'
+#define COMMAND_POS_VEL 'a'
+#define HOME 'h'
+#define SET_VEL_MODE 's'
+#define UNSET_VEL_MODE 'n'
+#define SEND_SLAVE 'r'
+
+#define PRINT_STATE 'e'
