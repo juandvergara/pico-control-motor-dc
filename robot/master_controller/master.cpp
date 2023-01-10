@@ -105,9 +105,11 @@ void set_vel_mode(float mode, bool print_msg)
 
 void print_state_joints()
 {
-    printf("Slide base: sp %.3f, pos: %.3f, \n", slidebase_joint.ref_position, slidebase_joint.position);
+    printf("%.3f,%.3f,%.3f \n",
+           slidebase_joint.position, base_joint.position, shoulder_joint.position);
+    /*printf("Slide base: sp %.3f, pos: %.3f, \n", slidebase_joint.ref_position, slidebase_joint.position);
     printf("Base: sp %.3f, pos: %.3f, \n", base_joint.ref_position, base_joint.position);
-    printf("Shoulder: sp %.3f, pos: %.3f\n \n", shoulder_joint.ref_position, shoulder_joint.position);
+    printf("Shoulder: sp %.3f, pos: %.3f\n \n", shoulder_joint.ref_position, shoulder_joint.position);*/
 }
 
 void send_info_slave(float *result, bool pos_mode)
@@ -145,20 +147,16 @@ void command_callback(char *buffer)
         token = strtok(NULL, " ");
 
         result[0] = strtof(token, &previous);
-        // printf("%.3f", result[0]);
 
-        for (int i = 0; i < 5; i++)
+        for (int i = 0; i < 2; i++)
         {
             result[i + 1] = strtof(previous + 1, &current);
             previous = current;
-            // printf(", %.3f", result[i + 1]);
         }
-        // printf("\n");
+
         slidebase_joint.ref_position = result[0];
         base_joint.ref_position = -round(result[1] / BASE_RELATION) * BASE_RELATION;
         shoulder_joint.ref_position = round(result[2] / SHOULDER_RELATION) * SHOULDER_RELATION;
-        command_slave = COMMAND_POS;
-        send_info_slave(result, true);
         break;
 
     case (COMMAND_VEL):
@@ -168,7 +166,7 @@ void command_callback(char *buffer)
         result[0] = strtof(token, &previous);
         printf("%.1f", result[0]);
 
-        for (int i = 0; i < 5 - 1; i++)
+        for (int i = 0; i < 2 - 1; i++)
         {
             result[i + 1] = strtof(previous + 1, &current);
             previous = current;
@@ -178,14 +176,11 @@ void command_callback(char *buffer)
         slidebase_joint.ref_velocity = result[0];
         base_joint.ref_velocity = result[1];
         shoulder_joint.ref_velocity = result[2];
-        command_slave = COMMAND_VEL;
-        send_info_slave(result, false);
         break;
     case (READ_ENCODER):
 
         printf("Encoder callback \n");
-        // print_state_joints();
-        command_slave = READ_ENCODER;
+        print_state_joints();
         break;
     case (SET_VEL_MODE):
         token = strtok(NULL, " ");
@@ -297,12 +292,6 @@ int main()
     stdio_init_all();
     printf("Master control");
 
-    i2c_init(I2C_PORT, 100 * 1000);
-    gpio_set_function(I2C_SDA_PIN, GPIO_FUNC_I2C);
-    gpio_set_function(I2C_SCL_PIN, GPIO_FUNC_I2C);
-    gpio_pull_up(I2C_SDA_PIN);
-    gpio_pull_up(I2C_SCL_PIN);
-
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
     initRobot();
@@ -323,14 +312,6 @@ int main()
     {
         input_char = getchar_timeout_us(0);
         process_user_input(input_char);
-        i2c_write_blocking(I2C_PORT, SLAVE_ADDR, &command_slave, 1, true);
-        i2c_write_blocking(I2C_PORT, SLAVE_ADDR, target_slave1, 4, true);
-        i2c_write_blocking(I2C_PORT, SLAVE_ADDR, target_slave2, 4, false);
-        i2c_write_blocking(I2C_PORT, SLAVE_ADDR, target_slave3, 4, false);
-        i2c_write_blocking(I2C_PORT, SLAVE_ADDR, status_slidebase, 4, false);
-        i2c_write_blocking(I2C_PORT, SLAVE_ADDR, status_base, 4, false);
-        i2c_write_blocking(I2C_PORT, SLAVE_ADDR, status_shoulder, 4, false);
-        if(command_slave == READ_ENCODER) command_slave = ' ';
         gpio_put(PICO_DEFAULT_LED_PIN, 0);
         sleep_ms(10);
     }
