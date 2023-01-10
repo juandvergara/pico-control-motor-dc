@@ -1,8 +1,15 @@
 
-#ifndef PICO_REMOTE_CAR_PINS_H
-#define PICO_REMOTE_CAR_PINS_H
+#ifndef PICO_SCORBOT_PINS_H
+#define PICO_SCORBOT_PINS_H
+ 
+#define LED_PIN 25
 
 /*################ GROUP 1 - MASTER ################*/
+#ifdef MASTER
+
+#define I2C_PORT i2c0
+#define I2C_SDA_PIN 4
+#define I2C_SCL_PIN 5
 
 /*-------------- MOTOR PINS --------------*/
 #define M0_ENA_PIN 10
@@ -25,8 +32,17 @@
 #define M1_HOME_SW 8
 #define M2_HOME_SW 9
 
-/*################ GROUP 2 - SLAVE ################*/
+#define M0_ENC_INVERTED false
+#define M1_ENC_INVERTED true
+#define M2_ENC_INVERTED true
 
+#endif
+/*################ GROUP 2 - SLAVE ################*/
+#ifdef SLAVE
+
+#define I2C_PORT i2c1
+#define I2C_SDA_PIN 26
+#define I2C_SCL_PIN 27
 /*-------------- MOTOR PINS --------------*/
 #define M3_ENA_PIN 10
 #define M3_ENB_PIN 11
@@ -48,11 +64,10 @@
 #define M4_HOME_SW 8
 #define M5_HOME_SW 9
 
-#define M0_ENC_INVERTED false
-#define M1_ENC_INVERTED true
-#define M2_ENC_INVERTED true
 #define M3_ENC_INVERTED true
 #define M4_ENC_INVERTED false
 #define M5_ENC_INVERTED true
+
+#endif
 
 #endif //PICO_REMOTE_CAR_PINS_H

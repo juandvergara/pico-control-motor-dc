@@ -7,10 +7,8 @@
 #include "encoder.h"
 #include "pid_filter.h"
 
-#define I2C_PORT i2c0
-#define I2C_SDA_PIN 4
-#define I2C_SCL_PIN 5
-#define LED_PIN 25
+#define MASTER
+#include "pins.h"
 
 #define SLIDEBASE_RELATION 0.008809710258418167f // 360.0f / (80.0f * 127.7f * 4.0f)
 #define BASE_RELATION 0.007047768206734534f      // 360.0f / (80.0f * 127.7f * 5.0f)

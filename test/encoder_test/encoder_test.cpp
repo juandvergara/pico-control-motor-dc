@@ -1,6 +1,7 @@
 #include "pico/stdlib.h"
 #include <cstdio>
 #include <cmath>
+#define SLAVE
 //#include "encoder_cuadratura.h"
 #include "encoder.h"
 

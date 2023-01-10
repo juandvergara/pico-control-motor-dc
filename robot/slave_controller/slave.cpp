@@ -7,10 +7,8 @@
 #include "encoder.h"
 #include "pid_filter.h"
 
-#define I2C_PORT i2c1
-#define I2C_SDA_PIN 26
-#define I2C_SCL_PIN 27
-#define LED_PIN 25
+#define SLAVE
+#include "pins.h"
 
 #define SHOULDER_RELATION 0.008809710258418167f // 360.0f / (80.0f * 127.7f * 4.0f)
 #define ELBOW_RELATION 0.008809710258418167f    // 360.0f / (80.0f * 127.7f * 4.0f)

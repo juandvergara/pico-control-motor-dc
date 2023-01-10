@@ -6,6 +6,9 @@
 #include "encoder.h"
 #include "pid_filter.h"
 
+#define SLAVE
+#include "pins.h"
+
 #define COMMAND_POS 'p'
 #define COMMAND_VEL 'v'
 #define READ_ENCODER 'e'

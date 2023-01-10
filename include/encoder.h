@@ -6,7 +6,6 @@
 #define PICO_REMOTE_CAR_ENCODER_H
 
 #include "pico/stdlib.h"
-#include "pins.h"
 
 // pins
 class Encoder

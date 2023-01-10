@@ -9,7 +9,6 @@
 #include "pico/stdlib.h"
 #include <cmath>
 #include "hardware/pwm.h"
-#include "pins.h"
 
 #define TOP 4999
 
