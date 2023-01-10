@@ -1,4 +1,5 @@
 #define MASTER
+#include "pins.h"
 
 #include "pico/stdlib.h"
 #include <cmath>

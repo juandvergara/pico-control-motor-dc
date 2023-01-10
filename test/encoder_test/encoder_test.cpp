@@ -2,6 +2,7 @@
 #include <cstdio>
 #include <cmath>
 #define SLAVE
+#include "pins.h"
 //#include "encoder_cuadratura.h"
 #include "encoder.h"
 
