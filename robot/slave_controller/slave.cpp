@@ -6,6 +6,7 @@
 #include "dc_motor_v2.h"
 #include "encoder.h"
 #include "pid_filter.h"
+#include "command.h"
 
 #define SLAVE
 #include "pins.h"
@@ -14,11 +15,7 @@
 #define ELBOW_RELATION 0.008809710258418167f    // 360.0f / (80.0f * 127.7f * 4.0f)
 #define WRIST_RELATION 0.038643194504079006f    // 0.03435114503816794f     // 0.03864325091758399f 360.0f / (80.0f * 65.5f * 2.0f)
 
-#define PRINT_STATE 'e'
-#define COMMAND_POS 'p'
-#define COMMAND_VEL 'v'
-#define SET_VEL_MODE 's'
-#define UNSET_VEL_MODE 'n'
+
 
 static int SLAVE_ADDR = 0x15;
 

@@ -6,6 +6,7 @@
 #include "dc_motor_v2.h"
 #include "encoder.h"
 #include "pid_filter.h"
+#include "command.h"
 
 #define MASTER
 #include "pins.h"
@@ -13,15 +14,6 @@
 #define SLIDEBASE_RELATION 0.008809710258418167f // 360.0f / (80.0f * 127.7f * 4.0f)
 #define BASE_RELATION 0.007047768206734534f      // 360.0f / (80.0f * 127.7f * 5.0f)
 #define SHOULDER_RELATION 0.008809710258418167f  // 360.0f / (80.0f * 127.7f * 4.0f)
-
-#define COMMAND_POS 'p'
-#define COMMAND_VEL 'v'
-#define READ_ENCODER 'e'
-#define COMMAND_POS_VEL 'a'
-#define HOME 'h'
-#define SET_VEL_MODE 's'
-#define UNSET_VEL_MODE 'n'
-#define SEND_SLAVE 'r'
 
 static int SLAVE_ADDR = 0x15;
 
