@@ -122,7 +122,7 @@ void set_vel_mode(float mode, bool print_msg)
 void print_state_joints()
 {
     printf("%.3f,%.3f,%.3f",
-           elbow_joint.position, wrist_right_joint.position, wrist_left_joint.position);
+           -elbow_joint.position, -wrist_right_joint.position, -wrist_left_joint.position);
 
     /*printf("%.3f,%.3f,%.3f,%.3f,%.3f,%.3f \n", slidebase_status, -base_status, shoulder_status,
            -(elbow_joint.position + shoulder_status),
@@ -215,8 +215,8 @@ void command_callback(char *buffer)
             previous = current;
         }
 
-        elbow_joint.ref_position = round(result[0] / SHOULDER_RELATION) * SHOULDER_RELATION;
-        wrist_left_joint.ref_position = -round(result[1] / WRIST_RELATION) * WRIST_RELATION;
+        elbow_joint.ref_position = round(-result[0] / SHOULDER_RELATION) * SHOULDER_RELATION;
+        wrist_left_joint.ref_position = round(result[1] / WRIST_RELATION) * WRIST_RELATION;
         wrist_right_joint.ref_position = round(result[2] / WRIST_RELATION) * WRIST_RELATION;
         break;
 
@@ -275,6 +275,16 @@ void process_user_input(int input_std)
     gpio_put(PICO_DEFAULT_LED_PIN, 0);
 }
 
+void core1_comm(){
+    int input_char;
+
+    while (true)
+    {
+        input_char = getchar_timeout_us(0);
+        process_user_input(input_char);
+    }
+}
+
 int main()
 {
     stdio_init_all();
@@ -283,6 +293,9 @@ int main()
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
     initRobot();
+
+    multicore_launch_core1(core1_comm);
+    sleep_ms(500);
 
     gpio_set_irq_enabled_with_callback(M3_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &encoders_callback);
     gpio_set_irq_enabled_with_callback(M4_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &encoders_callback);
@@ -294,13 +307,11 @@ int main()
         printf("Failure by not set timer!! \n");
     }
 
-    int input_char;
-
     while (true)
     {
-        input_char = getchar_timeout_us(0);
-        process_user_input(input_char);
         gpio_put(PICO_DEFAULT_LED_PIN, 0);
-        sleep_ms(10);
+        sleep_ms(200);
+        gpio_put(PICO_DEFAULT_LED_PIN, 1);
+        sleep_ms(200);
     }
 }

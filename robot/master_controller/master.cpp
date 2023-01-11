@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "pico/stdlib.h"
+#include "pico/multicore.h"
 #include "hardware/i2c.h"
 #include "dc_motor_v2.h"
 #include "encoder.h"
@@ -106,7 +107,7 @@ void set_vel_mode(float mode, bool print_msg)
 void print_state_joints()
 {
     printf("%.3f,%.3f,%.3f",
-           slidebase_joint.position, base_joint.position, shoulder_joint.position);
+           slidebase_joint.position, -base_joint.position, shoulder_joint.position);
     /*printf("Slide base: sp %.3f, pos: %.3f, \n", slidebase_joint.ref_position, slidebase_joint.position);
     printf("Base: sp %.3f, pos: %.3f, \n", base_joint.ref_position, base_joint.position);
     printf("Shoulder: sp %.3f, pos: %.3f\n \n", shoulder_joint.ref_position, shoulder_joint.position);*/
@@ -287,6 +288,16 @@ void encoders_callback(uint gpio, uint32_t events)
     shoulder_encoder.readPosition();
 }
 
+void core1_comm(){
+    int input_char;
+
+    while (true)
+    {
+        input_char = getchar_timeout_us(0);
+        process_user_input(input_char);
+    }
+}
+
 int main()
 {
     stdio_init_all();
@@ -295,6 +306,9 @@ int main()
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
     initRobot();
+
+    multicore_launch_core1(core1_comm);
+    sleep_ms(500);
 
     gpio_set_irq_enabled_with_callback(M0_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &encoders_callback);
     gpio_set_irq_enabled_with_callback(M1_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &encoders_callback);
@@ -306,13 +320,11 @@ int main()
         printf("Failure by not set timer!! \n");
     }
 
-    int input_char;
-
     while (true)
     {
-        input_char = getchar_timeout_us(0);
-        process_user_input(input_char);
         gpio_put(PICO_DEFAULT_LED_PIN, 0);
-        sleep_ms(10);
+        sleep_ms(200);
+        gpio_put(PICO_DEFAULT_LED_PIN, 1);
+        sleep_ms(200);
     }
 }
