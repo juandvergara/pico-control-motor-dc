@@ -121,7 +121,7 @@ void set_vel_mode(float mode, bool print_msg)
 
 void print_state_joints()
 {
-    printf("%.3f,%.3f,%.3f \n",
+    printf("%.3f,%.3f,%.3f",
            elbow_joint.position, wrist_right_joint.position, wrist_left_joint.position);
 
     /*printf("%.3f,%.3f,%.3f,%.3f,%.3f,%.3f \n", slidebase_status, -base_status, shoulder_status,
@@ -204,7 +204,7 @@ void command_callback(char *buffer)
     switch (command)
     {
     case (COMMAND_POS):
-        printf("Set position goal was call\n");
+        // printf("Set position goal was call\n");
         token = strtok(NULL, " ");
 
         result[0] = strtof(token, &previous);
@@ -240,7 +240,7 @@ void command_callback(char *buffer)
         break;
     case (READ_ENCODER):
 
-        printf("Encoder callback \n");
+        // printf("Encoder callback \n");
         print_state_joints();
         break;
     case (SET_VEL_MODE):
