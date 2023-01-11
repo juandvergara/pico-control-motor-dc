@@ -385,6 +385,35 @@ void encoders_callback(uint gpio, uint32_t events)
     encoder5.readPosition();
 }
 
+void path_generator(float target, float deg_s, Joint *joint)
+{
+    float initial_time = millis() / 1e3;
+
+    float theta0 = (*joint).position;
+    float dot_theta0 = 0;
+    float thetaf = target;
+    float dot_thetaf = 0;
+    float t_final = abs(target - theta0) / deg_s;
+
+    float a = theta0;
+    float b = dot_theta0;
+    float c = 3.0 * (thetaf - theta0) / pow(t_final, 2) - 2 * dot_theta0 / pow(t_final, 2) - dot_thetaf / pow(t_final, 2);
+    float d = -2.0 * (thetaf - theta0) / pow(t_final, 3) + (dot_thetaf - dot_theta0) / pow(t_final, 2);
+
+    float current_time = millis() / 1e3;
+
+    while ( (current_time - initial_time) < t_final)
+    {
+        float time_process = current_time - initial_time;
+        (*joint).ref_position = a + b * time_process + c * pow(time_process, 2) + d * pow(time_process, 3);
+        (*joint).ref_velocity = b + 2 * c * time_process + 3 * d * pow(time_process, 2);
+    
+        current_time = millis() / 1e3;
+    }
+
+    printf("End path SUCCESS \n");
+}
+
 int main()
 {
     stdio_init_all();
@@ -397,13 +426,18 @@ int main()
     gpio_set_irq_enabled_with_callback(M4_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &encoders_callback);
     gpio_set_irq_enabled_with_callback(M5_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &encoders_callback);
 
-    home();
+    // home();
 
     repeating_timer_t timer;
     if (!add_repeating_timer_ms(-sample_time_ms, controller_timer_callback, NULL, &timer))
     {
         printf("Failure by not set timer!! \n");
     }
+
+    sleep_ms(1000);
+
+    path_generator(90, 30, &elbow_joint);
+    path_generator(0, 30, &elbow_joint);
 
     while (true)
     {
