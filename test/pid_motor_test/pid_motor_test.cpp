@@ -51,7 +51,6 @@ float v3Prev = 0.0;
 uint32_t sample_time_ms = 10;
 float pid_rate;
 
-
 float result[50];
 int user_input;
 
@@ -95,7 +94,8 @@ void set_vel_mode(float mode, bool print_msg)
     }
 }
 
-void print_state_joints() {
+void print_state_joints()
+{
     printf("%.4f, ", elbow_joint.position);
     printf("%.4f, ", wrist_left_joint.position - elbow_joint.position);
     printf("%.4f \n", wrist_right_joint.position + elbow_joint.position);
@@ -327,6 +327,13 @@ void initRobot()
     wrist_left_joint.ref_position = 0;
     wrist_right_joint.ref_position = 0;
     pid_rate = float(sample_time_ms) / 1000.0f;
+
+    gpio_init(M3_HOME_SW);
+    gpio_pull_up(M3_HOME_SW);
+    gpio_init(M4_HOME_SW);
+    gpio_pull_up(M4_HOME_SW);
+    gpio_init(M5_HOME_SW);
+    gpio_pull_up(M5_HOME_SW);
 }
 
 void updatePid(int32_t joint1_encoder_ticks, int32_t joint2_encoder_ticks, int32_t joint3_encoder_ticks)
@@ -402,16 +409,210 @@ void path_generator(float target, float deg_s, Joint *joint)
 
     float current_time = millis() / 1e3;
 
-    while ( (current_time - initial_time) < t_final)
+    while ((current_time - initial_time) < t_final)
     {
         float time_process = current_time - initial_time;
         (*joint).ref_position = a + b * time_process + c * pow(time_process, 2) + d * pow(time_process, 3);
         (*joint).ref_velocity = b + 2 * c * time_process + 3 * d * pow(time_process, 2);
-    
+        if (!gpio_get(M3_HOME_SW))
+        {
+            encoder3.encoder_pos = 0;
+            (*joint).ref_position = 0;
+            (*joint).ref_velocity = 0;
+            break;
+        }
         current_time = millis() / 1e3;
     }
 
     printf("End path SUCCESS \n");
+}
+
+bool home_elbow()
+{
+    bool elbow_home = false;
+
+    float initial_time, current_time;
+
+    float theta0, dot_theta0, thetaf, dot_thetaf, t_final;
+    float a, b, c, d;
+
+    while(!elbow_home){
+        if (gpio_get(M3_HOME_SW))
+        {
+            printf("Fixing elbow home \n");
+            theta0 = elbow_joint.position;
+            dot_theta0 = 0;
+            thetaf = 100;
+            dot_thetaf = 0;
+
+            t_final = abs(thetaf - theta0) / 15.0;
+
+            a = theta0;
+            b = dot_theta0;
+            c = 3.0 * (thetaf - theta0) / pow(t_final, 2) - 2 * dot_theta0 / pow(t_final, 2) - dot_thetaf / pow(t_final, 2);
+            d = -2.0 * (thetaf - theta0) / pow(t_final, 3) + (dot_thetaf - dot_theta0) / pow(t_final, 2);
+
+            initial_time = millis() / 1e3;
+            current_time = initial_time;
+
+            while ((current_time - initial_time) < t_final)
+            {
+                float time_process = current_time - initial_time;
+                elbow_joint.ref_position = a + b * time_process + c * pow(time_process, 2) + d * pow(time_process, 3);
+                elbow_joint.ref_velocity = b + 2 * c * time_process + 3 * d * pow(time_process, 2);
+                if (!gpio_get(M3_HOME_SW))
+                {
+                    encoder3.encoder_pos = 0;
+                    elbow_joint.ref_position = 0;
+                    elbow_joint.ref_velocity = 0;
+                    elbow_home = true;
+                    break;
+                }
+                current_time = millis() / 1e3;
+            }
+        }
+        else
+        {
+            theta0 = elbow_joint.position;
+            dot_theta0 = 0;
+            thetaf = -30;
+            dot_thetaf = 0;
+
+            t_final = abs(thetaf - theta0) / 10.0;
+
+            a = theta0;
+            b = dot_theta0;
+            c = 3.0 * (thetaf - theta0) / pow(t_final, 2) - 2 * dot_theta0 / pow(t_final, 2) - dot_thetaf / pow(t_final, 2);
+            d = -2.0 * (thetaf - theta0) / pow(t_final, 3) + (dot_thetaf - dot_theta0) / pow(t_final, 2);
+
+            initial_time = millis() / 1e3;
+            current_time = initial_time;
+
+            while ((current_time - initial_time) < t_final)
+            {
+                float time_process = current_time - initial_time;
+                elbow_joint.ref_position = a + b * time_process + c * pow(time_process, 2) + d * pow(time_process, 3);
+                elbow_joint.ref_velocity = b + 2 * c * time_process + 3 * d * pow(time_process, 2);
+                current_time = millis() / 1e3;
+            }
+        }
+    }
+
+    return home_elbow;
+}
+
+bool home_wrist_pitch()
+{
+    bool wrist_pitch = false;
+
+    float initial_time, current_time;
+
+    float left_theta0, left_dot_theta0, left_thetaf, left_dot_thetaf, left_t_final;
+    float right_theta0, right_dot_theta0, right_thetaf, right_dot_thetaf, right_t_final;
+
+    float l_a, l_b, l_c, l_d;
+    float r_a, r_b, r_c, r_d;
+
+    while(!wrist_pitch){
+        if (gpio_get(M4_HOME_SW))
+        {
+            printf("Fixing wrist pitch home \n");
+
+            left_theta0 = wrist_left_joint.position;
+            left_dot_theta0 = 0;
+            left_thetaf = 200;
+            left_dot_thetaf = 0;
+
+            left_t_final = abs(left_thetaf - left_theta0) / 20.0;
+
+            l_a = left_theta0;
+            l_b = left_dot_theta0;
+            l_c = 3.0 * (left_thetaf - left_theta0) / pow(left_t_final, 2) - 2 * left_dot_theta0 / pow(left_t_final, 2) - left_dot_thetaf / pow(left_t_final, 2);
+            l_d = -2.0 * (left_thetaf - left_theta0) / pow(left_t_final, 3) + (left_dot_thetaf - left_dot_theta0) / pow(left_t_final, 2);
+
+            right_theta0 = wrist_right_joint.position;
+            right_dot_theta0 = 0;
+            right_thetaf = -200;
+            right_dot_thetaf = 0;
+
+            right_t_final = abs(right_thetaf - right_theta0) / 20.0;
+
+            r_a = right_theta0;
+            r_b = right_dot_theta0;
+            r_c = 3.0 * (right_thetaf - right_theta0) / pow(right_t_final, 2) - 2 * right_dot_theta0 / pow(right_t_final, 2) - right_dot_thetaf / pow(right_t_final, 2);
+            r_d = -2.0 * (right_thetaf - right_theta0) / pow(right_t_final, 3) + (right_dot_thetaf - right_dot_theta0) / pow(right_t_final, 2);
+
+            initial_time = millis() / 1e3;
+            current_time = initial_time;
+
+            while ((current_time - initial_time) < right_t_final || left_t_final)
+            {
+                float time_process = current_time - initial_time;
+
+                wrist_left_joint.ref_position = l_a + l_b * time_process + l_c * pow(time_process, 2) + l_d * pow(time_process, 3);
+                wrist_left_joint.ref_velocity = l_b + 2 * l_c * time_process + 3 * l_d * pow(time_process, 2);
+
+                wrist_right_joint.ref_position = r_a + r_b * time_process + r_c * pow(time_process, 2) + r_d * pow(time_process, 3);
+                wrist_right_joint.ref_velocity = r_b + 2 * r_c * time_process + 3 * r_d * pow(time_process, 2);
+
+                if (!gpio_get(M4_HOME_SW))
+                {
+                    encoder4.encoder_pos = 0;
+                    wrist_left_joint.ref_position = 0;
+                    wrist_left_joint.ref_velocity = 0;
+                    encoder5.encoder_pos = 0;
+                    wrist_right_joint.ref_position = 0;
+                    wrist_right_joint.ref_velocity = 0;
+                    wrist_pitch = true;
+                    break;
+                }
+                current_time = millis() / 1e3;
+            }
+        }
+        else {
+            left_theta0 = wrist_left_joint.position;
+            left_dot_theta0 = 0;
+            left_thetaf = -60;
+            left_dot_thetaf = 0;
+
+            left_t_final = abs(left_thetaf - left_theta0) / 15.0;
+
+            l_a = left_theta0;
+            l_b = left_dot_theta0;
+            l_c = 3.0 * (left_thetaf - left_theta0) / pow(left_t_final, 2) - 2 * left_dot_theta0 / pow(left_t_final, 2) - left_dot_thetaf / pow(left_t_final, 2);
+            l_d = -2.0 * (left_thetaf - left_theta0) / pow(left_t_final, 3) + (left_dot_thetaf - left_dot_theta0) / pow(left_t_final, 2);
+
+            right_theta0 = wrist_right_joint.position;
+            right_dot_theta0 = 0;
+            right_thetaf = 60;
+            right_dot_thetaf = 0;
+
+            right_t_final = abs(right_thetaf - right_theta0) / 10.0;
+
+            r_a = right_theta0;
+            r_b = right_dot_theta0;
+            r_c = 3.0 * (right_thetaf - right_theta0) / pow(right_t_final, 2) - 2 * right_dot_theta0 / pow(right_t_final, 2) - right_dot_thetaf / pow(right_t_final, 2);
+            r_d = -2.0 * (right_thetaf - right_theta0) / pow(right_t_final, 3) + (right_dot_thetaf - right_dot_theta0) / pow(right_t_final, 2);
+
+            initial_time = millis() / 1e3;
+            current_time = initial_time;
+
+            while ((current_time - initial_time) < right_t_final || left_t_final)
+            {
+                float time_process = current_time - initial_time;
+
+                wrist_left_joint.ref_position = l_a + l_b * time_process + l_c * pow(time_process, 2) + l_d * pow(time_process, 3);
+                wrist_left_joint.ref_velocity = l_b + 2 * l_c * time_process + 3 * l_d * pow(time_process, 2);
+
+                wrist_right_joint.ref_position = r_a + r_b * time_process + r_c * pow(time_process, 2) + r_d * pow(time_process, 3);
+                wrist_right_joint.ref_velocity = r_b + 2 * r_c * time_process + 3 * r_d * pow(time_process, 2);
+
+                current_time = millis() / 1e3;
+            }
+        }
+    }
+
+    return home_wrist_pitch;
 }
 
 int main()
@@ -436,8 +637,11 @@ int main()
 
     sleep_ms(1000);
 
-    path_generator(90, 30, &elbow_joint);
-    path_generator(0, 30, &elbow_joint);
+    bool success_home_elbow = home_elbow();
+    bool success_home_wrist_pitch = home_wrist_pitch();
+    
+    // path_generator(90, 10, &elbow_joint);
+    // path_generator(0, 30, &elbow_joint);
 
     while (true)
     {

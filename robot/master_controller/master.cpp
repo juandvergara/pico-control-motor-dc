@@ -104,6 +104,129 @@ void set_vel_mode(float mode, bool print_msg)
     }
 }
 
+bool home_body()
+{
+    bool base_home = false;
+
+    float initial_time, current_time;
+
+    float theta0, dot_theta0, thetaf, dot_thetaf, t_final;
+    float a, b, c, d;
+
+    while(!base_home){
+        if (gpio_get(M1_HOME_SW))
+        {
+            printf("Fixing body home \n");
+            theta0 = base_joint.position;
+            dot_theta0 = 0;
+            thetaf = 90;
+            dot_thetaf = 0;
+
+            t_final = abs(thetaf - theta0) / 15.0;
+
+            a = theta0;
+            b = dot_theta0;
+            c = 3.0 * (thetaf - theta0) / pow(t_final, 2) - 2 * dot_theta0 / pow(t_final, 2) - dot_thetaf / pow(t_final, 2);
+            d = -2.0 * (thetaf - theta0) / pow(t_final, 3) + (dot_thetaf - dot_theta0) / pow(t_final, 2);
+
+            initial_time = millis() / 1e3;
+            current_time = initial_time;
+
+            while ((current_time - initial_time) < t_final)
+            {
+                float time_process = current_time - initial_time;
+                base_joint.ref_position = a + b * time_process + c * pow(time_process, 2) + d * pow(time_process, 3);
+                base_joint.ref_velocity = b + 2 * c * time_process + 3 * d * pow(time_process, 2);
+                if (!gpio_get(M1_HOME_SW))
+                {
+                    base_encoder.encoder_pos = 0;
+                    base_joint.ref_position = 0;
+                    base_joint.ref_velocity = 0;
+                    base_home = true;
+                    break;
+                }
+                current_time = millis() / 1e3;
+            }
+        }
+    }
+
+    return base_home;
+}
+
+bool home_shoulder()
+{
+    bool shoulder_home = false;
+
+    float initial_time, current_time;
+
+    float theta0, dot_theta0, thetaf, dot_thetaf, t_final;
+    float a, b, c, d;
+
+    while(!shoulder_home){
+        if (gpio_get(M2_HOME_SW))
+        {
+            printf("Fixing shoulder home \n");
+            theta0 = shoulder_joint.position;
+            dot_theta0 = 0;
+            thetaf = 180;
+            dot_thetaf = 0;
+
+            t_final = abs(thetaf - theta0) / 15.0;
+
+            a = theta0;
+            b = dot_theta0;
+            c = 3.0 * (thetaf - theta0) / pow(t_final, 2) - 2 * dot_theta0 / pow(t_final, 2) - dot_thetaf / pow(t_final, 2);
+            d = -2.0 * (thetaf - theta0) / pow(t_final, 3) + (dot_thetaf - dot_theta0) / pow(t_final, 2);
+
+            initial_time = millis() / 1e3;
+            current_time = initial_time;
+
+            while ((current_time - initial_time) < t_final)
+            {
+                float time_process = current_time - initial_time;
+                shoulder_joint.ref_position = a + b * time_process + c * pow(time_process, 2) + d * pow(time_process, 3);
+                shoulder_joint.ref_velocity = b + 2 * c * time_process + 3 * d * pow(time_process, 2);
+                if (!gpio_get(M2_HOME_SW))
+                {
+                    shoulder_encoder.encoder_pos = 0;
+                    shoulder_joint.ref_position = 0;
+                    shoulder_joint.ref_velocity = 0;
+                    shoulder_home = true;
+                    break;
+                }
+                current_time = millis() / 1e3;
+            }
+        }
+        else
+        {
+            theta0 = shoulder_joint.position;
+            dot_theta0 = 0;
+            thetaf = -10;
+            dot_thetaf = 0;
+
+            t_final = abs(thetaf - theta0) / 10.0;
+
+            a = theta0;
+            b = dot_theta0;
+            c = 3.0 * (thetaf - theta0) / pow(t_final, 2) - 2 * dot_theta0 / pow(t_final, 2) - dot_thetaf / pow(t_final, 2);
+            d = -2.0 * (thetaf - theta0) / pow(t_final, 3) + (dot_thetaf - dot_theta0) / pow(t_final, 2);
+
+            initial_time = millis() / 1e3;
+            current_time = initial_time;
+
+            while ((current_time - initial_time) < t_final)
+            {
+                float time_process = current_time - initial_time;
+                shoulder_joint.ref_position = a + b * time_process + c * pow(time_process, 2) + d * pow(time_process, 3);
+                shoulder_joint.ref_velocity = b + 2 * c * time_process + 3 * d * pow(time_process, 2);
+                current_time = millis() / 1e3;
+            }
+        }
+    }
+
+    return shoulder_home;
+}
+
 void print_state_joints()
 {
     printf("%.3f,%.3f,%.3f",
@@ -179,8 +302,6 @@ void command_callback(char *buffer)
         shoulder_joint.ref_velocity = result[2];
         break;
     case (READ_ENCODER):
-
-        // printf("Encoder callback \n");
         print_state_joints();
         break;
     case (SET_VEL_MODE):
@@ -188,6 +309,19 @@ void command_callback(char *buffer)
         float mode;
         mode = strtof(token, &previous);
         set_vel_mode(mode, true);
+        break;
+    case (HOME):
+        home_shoulder();
+        home_body();
+        break;
+    case (CLEAR_JOINTS):
+        printf("Encoder variables cleaned! \n");
+        slidebase_encoder.encoder_pos = 0;
+        slidebase_joint.ref_position = 0;
+        base_encoder.encoder_pos = 0;
+        base_joint.ref_position = 0;
+        shoulder_encoder.encoder_pos = 0;
+        shoulder_joint.ref_position = 0;
         break;
     default:
         printf("Invalid command \n");
@@ -230,6 +364,13 @@ void initRobot()
     shoulder_joint.ref_position = 0;
 
     pid_rate = float(sample_time_ms) / 1000.0f;
+
+    gpio_init(M0_HOME_SW);
+    gpio_pull_up(M0_HOME_SW);
+    gpio_init(M1_HOME_SW);
+    gpio_pull_up(M1_HOME_SW);
+    gpio_init(M2_HOME_SW);
+    gpio_pull_up(M2_HOME_SW);
 }
 
 void updatePid(int32_t joint1_encoder_ticks, int32_t joint2_encoder_ticks, int32_t joint3_encoder_ticks)
@@ -287,6 +428,7 @@ void encoders_callback(uint gpio, uint32_t events)
     base_encoder.readPosition();
     shoulder_encoder.readPosition();
 }
+
 
 void core1_comm(){
     int input_char;

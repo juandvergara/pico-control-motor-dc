@@ -6,5 +6,6 @@
 #define SET_VEL_MODE 's'
 #define UNSET_VEL_MODE 'n'
 #define SEND_SLAVE 'r'
+#define CLEAR_JOINTS 'c'
 
 #define PRINT_STATE 'e'
