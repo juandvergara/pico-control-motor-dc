@@ -16,6 +16,12 @@
 #define ELBOW_RELATION 0.008809710258418167f    // 360.0f / (80.0f * 127.7f * 4.0f)
 #define WRIST_RELATION 0.038643194504079006f    // 0.03435114503816794f     // 0.03864325091758399f 360.0f / (80.0f * 65.5f * 2.0f)
 
+#define HOME_ELBOW_ANGLE -5.0f
+#define HOME_WRIST_LEFT_ANGLE -20.0f
+#define HOME_WRIST_RIGHT_ANGLE -110.0f
+
+#define DEG_S 8.0f
+
 static int SLAVE_ADDR = 0x15;
 
 struct Joint
@@ -129,7 +135,7 @@ void set_vel_mode(float mode, bool print_msg)
 void print_state_joints()
 {
     printf("%.3f,%.3f,%.3f",
-           -elbow_joint.position, -wrist_right_joint.position, -wrist_left_joint.position);
+           -elbow_joint.position, -wrist_left_joint.position, -wrist_right_joint.position);
 
     /*printf("%.3f,%.3f,%.3f,%.3f,%.3f,%.3f \n", slidebase_status, -base_status, shoulder_status,
            -(elbow_joint.position + shoulder_status),
@@ -203,7 +209,8 @@ bool home_elbow()
     float theta0, dot_theta0, thetaf, dot_thetaf, t_final;
     float a, b, c, d;
 
-    while(!elbow_home){
+    while (!elbow_home)
+    {
         if (gpio_get(M3_HOME_SW))
         {
             printf("Fixing elbow home \n");
@@ -212,7 +219,7 @@ bool home_elbow()
             thetaf = 100;
             dot_thetaf = 0;
 
-            t_final = abs(thetaf - theta0) / 15.0;
+            t_final = abs(thetaf - theta0) / DEG_S;
 
             a = theta0;
             b = dot_theta0;
@@ -242,10 +249,10 @@ bool home_elbow()
         {
             theta0 = elbow_joint.position;
             dot_theta0 = 0;
-            thetaf = -30;
+            thetaf = -20;
             dot_thetaf = 0;
 
-            t_final = abs(thetaf - theta0) / 10.0;
+            t_final = abs(thetaf - theta0) / DEG_S;
 
             a = theta0;
             b = dot_theta0;
@@ -280,7 +287,8 @@ bool home_wrist_pitch()
     float l_a, l_b, l_c, l_d;
     float r_a, r_b, r_c, r_d;
 
-    while(!home_wrist_pitch){
+    while (!home_wrist_pitch)
+    {
         if (gpio_get(M4_HOME_SW))
         {
             printf("Fixing wrist pitch home \n");
@@ -336,6 +344,49 @@ bool home_wrist_pitch()
                 current_time = millis() / 1e3;
             }
         }
+        else
+        {
+            left_theta0 = wrist_left_joint.position;
+            left_dot_theta0 = 0;
+            left_thetaf = -60;
+            left_dot_thetaf = 0;
+
+            left_t_final = abs(left_thetaf - left_theta0) / 20.0;
+
+            l_a = left_theta0;
+            l_b = left_dot_theta0;
+            l_c = 3.0 * (left_thetaf - left_theta0) / pow(left_t_final, 2) - 2 * left_dot_theta0 / pow(left_t_final, 2) - left_dot_thetaf / pow(left_t_final, 2);
+            l_d = -2.0 * (left_thetaf - left_theta0) / pow(left_t_final, 3) + (left_dot_thetaf - left_dot_theta0) / pow(left_t_final, 2);
+
+            right_theta0 = wrist_right_joint.position;
+            right_dot_theta0 = 0;
+            right_thetaf = 60;
+            right_dot_thetaf = 0;
+
+            right_t_final = abs(right_thetaf - right_theta0) / 20.0;
+
+            r_a = right_theta0;
+            r_b = right_dot_theta0;
+            r_c = 3.0 * (right_thetaf - right_theta0) / pow(right_t_final, 2) - 2 * right_dot_theta0 / pow(right_t_final, 2) - right_dot_thetaf / pow(right_t_final, 2);
+            r_d = -2.0 * (right_thetaf - right_theta0) / pow(right_t_final, 3) + (right_dot_thetaf - right_dot_theta0) / pow(right_t_final, 2);
+
+            initial_time = millis() / 1e3;
+            current_time = initial_time;
+
+            while ((current_time - initial_time) < right_t_final || left_t_final)
+            {
+                float time_process = current_time - initial_time;
+
+                wrist_left_joint.ref_position = l_a + l_b * time_process + l_c * pow(time_process, 2) + l_d * pow(time_process, 3);
+                wrist_left_joint.ref_velocity = l_b + 2 * l_c * time_process + 3 * l_d * pow(time_process, 2);
+
+                wrist_right_joint.ref_position = r_a + r_b * time_process + r_c * pow(time_process, 2) + r_d * pow(time_process, 3);
+                wrist_right_joint.ref_velocity = r_b + 2 * r_c * time_process + 3 * r_d * pow(time_process, 2);
+
+                current_time = millis() / 1e3;
+            }
+            sleep_ms(100);
+        }
     }
 
     return home_wrist_pitch;
@@ -353,14 +404,15 @@ bool home_wrist_roll()
     float l_a, l_b, l_c, l_d;
     float r_a, r_b, r_c, r_d;
 
-    while(!home_wrist_roll){
+    while (!home_wrist_roll)
+    {
         if (gpio_get(M5_HOME_SW))
         {
             printf("Fixing wrist roll home \n");
 
             left_theta0 = wrist_left_joint.position;
             left_dot_theta0 = 0;
-            left_thetaf = -90;
+            left_thetaf = -200;
             left_dot_thetaf = 0;
 
             left_t_final = abs(left_thetaf - left_theta0) / 20.0;
@@ -372,7 +424,7 @@ bool home_wrist_roll()
 
             right_theta0 = wrist_right_joint.position;
             right_dot_theta0 = 0;
-            right_thetaf = -90;
+            right_thetaf = -200;
             right_dot_thetaf = 0;
 
             right_t_final = abs(right_thetaf - right_theta0) / 20.0;
@@ -408,6 +460,48 @@ bool home_wrist_roll()
                 }
                 current_time = millis() / 1e3;
             }
+        }
+        else
+        {
+            left_theta0 = wrist_left_joint.position;
+            left_dot_theta0 = 0;
+            left_thetaf = 30;
+            left_dot_thetaf = 0;
+
+            left_t_final = abs(left_thetaf - left_theta0) / 20.0;
+
+            l_a = left_theta0;
+            l_b = left_dot_theta0;
+            l_c = 3.0 * (left_thetaf - left_theta0) / pow(left_t_final, 2) - 2 * left_dot_theta0 / pow(left_t_final, 2) - left_dot_thetaf / pow(left_t_final, 2);
+            l_d = -2.0 * (left_thetaf - left_theta0) / pow(left_t_final, 3) + (left_dot_thetaf - left_dot_theta0) / pow(left_t_final, 2);
+
+            right_theta0 = wrist_right_joint.position;
+            right_dot_theta0 = 0;
+            right_thetaf = 30;
+            right_dot_thetaf = 0;
+
+            right_t_final = abs(right_thetaf - right_theta0) / 20.0;
+
+            r_a = right_theta0;
+            r_b = right_dot_theta0;
+            r_c = 3.0 * (right_thetaf - right_theta0) / pow(right_t_final, 2) - 2 * right_dot_theta0 / pow(right_t_final, 2) - right_dot_thetaf / pow(right_t_final, 2);
+            r_d = -2.0 * (right_thetaf - right_theta0) / pow(right_t_final, 3) + (right_dot_thetaf - right_dot_theta0) / pow(right_t_final, 2);
+
+            initial_time = millis() / 1e3;
+            current_time = initial_time;
+
+            while ((current_time - initial_time) < right_t_final || left_t_final)
+            {
+                float time_process = current_time - initial_time;
+
+                wrist_left_joint.ref_position = l_a + l_b * time_process + l_c * pow(time_process, 2) + l_d * pow(time_process, 3);
+                wrist_left_joint.ref_velocity = l_b + 2 * l_c * time_process + 3 * l_d * pow(time_process, 2);
+
+                wrist_right_joint.ref_position = r_a + r_b * time_process + r_c * pow(time_process, 2) + r_d * pow(time_process, 3);
+                wrist_right_joint.ref_velocity = r_b + 2 * r_c * time_process + 3 * r_d * pow(time_process, 2);
+                current_time = millis() / 1e3;
+            }
+            sleep_ms(100);
         }
     }
 
@@ -476,8 +570,15 @@ void command_callback(char *buffer)
         break;
     case (HOME):
         home_elbow();
+        home_wrist_roll();
+        sleep_ms(200);
         home_wrist_pitch();
-        // home_wrist_roll();
+        elbow_encoder.encoder_pos = round(HOME_ELBOW_ANGLE / ELBOW_RELATION);
+        elbow_joint.ref_position = round(HOME_ELBOW_ANGLE / ELBOW_RELATION) * ELBOW_RELATION;
+        wrist_left_encoder.encoder_pos = round(HOME_WRIST_LEFT_ANGLE / WRIST_RELATION);
+        wrist_left_joint.ref_position = round(HOME_WRIST_LEFT_ANGLE / WRIST_RELATION) * WRIST_RELATION;
+        wrist_right_encoder.encoder_pos = round(HOME_WRIST_RIGHT_ANGLE / WRIST_RELATION);
+        wrist_right_joint.ref_position = round(HOME_WRIST_RIGHT_ANGLE / WRIST_RELATION) * WRIST_RELATION;
         break;
     case (CLEAR_JOINTS):
         printf("Encoder variables cleaned! \n");
@@ -514,7 +615,8 @@ void process_user_input(int input_std)
     gpio_put(PICO_DEFAULT_LED_PIN, 0);
 }
 
-void core1_comm(){
+void core1_comm()
+{
     int input_char;
 
     while (true)

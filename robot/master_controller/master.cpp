@@ -16,6 +16,11 @@
 #define BASE_RELATION 0.007047768206734534f      // 360.0f / (80.0f * 127.7f * 5.0f)
 #define SHOULDER_RELATION 0.008809710258418167f  // 360.0f / (80.0f * 127.7f * 4.0f)
 
+#define HOME_BASE_ANGLE 87.5f
+#define HOME_SHOULDER_ANGLE 120.0f
+
+#define DEG_S 8.0f
+
 static int SLAVE_ADDR = 0x15;
 
 struct Joint
@@ -113,7 +118,8 @@ bool home_body()
     float theta0, dot_theta0, thetaf, dot_thetaf, t_final;
     float a, b, c, d;
 
-    while(!base_home){
+    while (!base_home)
+    {
         if (gpio_get(M1_HOME_SW))
         {
             printf("Fixing body home \n");
@@ -122,7 +128,7 @@ bool home_body()
             thetaf = 90;
             dot_thetaf = 0;
 
-            t_final = abs(thetaf - theta0) / 15.0;
+            t_final = abs(thetaf - theta0) / DEG_S;
 
             a = theta0;
             b = dot_theta0;
@@ -148,6 +154,31 @@ bool home_body()
                 current_time = millis() / 1e3;
             }
         }
+        else
+        {
+            theta0 = base_joint.position;
+            dot_theta0 = 0;
+            thetaf = -20;
+            dot_thetaf = 0;
+
+            t_final = abs(thetaf - theta0) / DEG_S;
+
+            a = theta0;
+            b = dot_theta0;
+            c = 3.0 * (thetaf - theta0) / pow(t_final, 2) - 2 * dot_theta0 / pow(t_final, 2) - dot_thetaf / pow(t_final, 2);
+            d = -2.0 * (thetaf - theta0) / pow(t_final, 3) + (dot_thetaf - dot_theta0) / pow(t_final, 2);
+
+            initial_time = millis() / 1e3;
+            current_time = initial_time;
+
+            while ((current_time - initial_time) < t_final)
+            {
+                float time_process = current_time - initial_time;
+                base_joint.ref_position = a + b * time_process + c * pow(time_process, 2) + d * pow(time_process, 3);
+                base_joint.ref_velocity = b + 2 * c * time_process + 3 * d * pow(time_process, 2);
+                current_time = millis() / 1e3;
+            }
+        }
     }
 
     return base_home;
@@ -162,7 +193,8 @@ bool home_shoulder()
     float theta0, dot_theta0, thetaf, dot_thetaf, t_final;
     float a, b, c, d;
 
-    while(!shoulder_home){
+    while (!shoulder_home)
+    {
         if (gpio_get(M2_HOME_SW))
         {
             printf("Fixing shoulder home \n");
@@ -171,7 +203,7 @@ bool home_shoulder()
             thetaf = 180;
             dot_thetaf = 0;
 
-            t_final = abs(thetaf - theta0) / 15.0;
+            t_final = abs(thetaf - theta0) / DEG_S;
 
             a = theta0;
             b = dot_theta0;
@@ -204,7 +236,7 @@ bool home_shoulder()
             thetaf = -10;
             dot_thetaf = 0;
 
-            t_final = abs(thetaf - theta0) / 10.0;
+            t_final = abs(thetaf - theta0) / DEG_S;
 
             a = theta0;
             b = dot_theta0;
@@ -313,6 +345,12 @@ void command_callback(char *buffer)
     case (HOME):
         home_shoulder();
         home_body();
+        slidebase_encoder.encoder_pos = 0;
+        slidebase_joint.ref_position = 0;
+        base_encoder.encoder_pos = round(HOME_BASE_ANGLE / BASE_RELATION);
+        base_joint.ref_position = round(HOME_BASE_ANGLE / BASE_RELATION) * BASE_RELATION;
+        shoulder_encoder.encoder_pos = round(HOME_SHOULDER_ANGLE / SHOULDER_RELATION);
+        shoulder_joint.ref_position = round(HOME_SHOULDER_ANGLE / SHOULDER_RELATION) * SHOULDER_RELATION;
         break;
     case (CLEAR_JOINTS):
         printf("Encoder variables cleaned! \n");
@@ -429,8 +467,8 @@ void encoders_callback(uint gpio, uint32_t events)
     shoulder_encoder.readPosition();
 }
 
-
-void core1_comm(){
+void core1_comm()
+{
     int input_char;
 
     while (true)
