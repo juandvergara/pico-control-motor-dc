@@ -445,8 +445,8 @@ void updatePid(int32_t joint1_encoder_ticks, int32_t joint2_encoder_ticks, int32
     PID_base.compute();
     PID_shoulder.compute();
 
-    M0_ENC_INVERTED ? motor1_vel = -slidebase_joint.effort : motor3_vel = slidebase_joint.effort;
-    M1_ENC_INVERTED ? motor2_vel = -base_joint.effort : motor3_vel = base_joint.effort;
+    M0_ENC_INVERTED ? motor1_vel = -slidebase_joint.effort : motor1_vel = slidebase_joint.effort;
+    M1_ENC_INVERTED ? motor2_vel = -base_joint.effort : motor2_vel = base_joint.effort;
     M2_ENC_INVERTED ? motor3_vel = -shoulder_joint.effort : motor3_vel = shoulder_joint.effort;
 
     slidebase_motor.write(motor1_vel);
