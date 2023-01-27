@@ -12,7 +12,7 @@
 #define MASTER
 #include "pins.h"
 
-#define SLIDEBASE_RELATION 0.008809710258418167f // 360.0f / (80.0f * 127.7f * 4.0f)
+#define SLIDEBASE_RELATION 0.000361261652855874f // 1.0f / (1.3516f * 512.0f * 4.0f)
 #define BASE_RELATION 0.007047768206734534f      // 360.0f / (80.0f * 127.7f * 5.0f)
 #define SHOULDER_RELATION 0.008809710258418167f  // 360.0f / (80.0f * 127.7f * 4.0f)
 
@@ -309,8 +309,7 @@ void command_callback(char *buffer)
             result[i + 1] = strtof(previous + 1, &current);
             previous = current;
         }
-
-        slidebase_joint.ref_position = result[0];
+        slidebase_joint.ref_position = round(result[0] / SLIDEBASE_RELATION) * SLIDEBASE_RELATION;
         base_joint.ref_position = -round(result[1] / BASE_RELATION) * BASE_RELATION;
         shoulder_joint.ref_position = round(result[2] / SHOULDER_RELATION) * SHOULDER_RELATION;
         break;
