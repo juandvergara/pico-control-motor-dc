@@ -20,12 +20,12 @@
 #define M2_ENB_PIN 15
 
 /*------------- ENCODER PINS -------------*/
-#define M0_ENC_A_PIN 17 // 21
-#define M0_ENC_B_PIN 16 // 20
+#define M0_ENC_A_PIN 19 // 21
+#define M0_ENC_B_PIN 18 // 20
 #define M1_ENC_A_PIN 21 // 19
 #define M1_ENC_B_PIN 20 // 18
-#define M2_ENC_A_PIN 19 // 17
-#define M2_ENC_B_PIN 18 // 16
+#define M2_ENC_A_PIN 17 // 17
+#define M2_ENC_B_PIN 16 // 16
 
 /*------------- SW_HOME PINS -------------*/
 #define M0_HOME_SW 7
