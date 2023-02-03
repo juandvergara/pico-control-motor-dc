@@ -4,8 +4,11 @@
 #include "hardware/adc.h"
 #include "hardware/pwm.h"
 
-#define _pwm_pin 15
-#define TOP 4095
+#define STEP_PIN
+#define DIR_PIN 
+
+#define _pwm_pin 22
+#define TOP 2047
 uint _slice_num;
 uint _channel;
 
@@ -131,6 +134,12 @@ int main()
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
 
+
+    gpio_init(STEP_PIN);
+    gpio_set_dir(STEP_PIN, GPIO_OUT);
+    gpio_init(DIR_PIN);
+    gpio_set_dir(DIR_PIN, GPIO_OUT);
+
     while (1)
     {
         // 12-bit conversion, assume max value == ADC_VREF == 3.3 V
@@ -139,13 +148,30 @@ int main()
         float temp_res = temp_calculate(result);
 
         printf("Temperature: %.3f °C \n", temp_res);
-        if (temp_res < 180.0)
+        if (temp_res < 100.0)
         {
             gpio_put(PICO_DEFAULT_LED_PIN, 1);
             printf("Calentando... \n");
-            temp_write(0.5);
+            temp_write(1.0);
         }
-
+        else
+        {
+            gpio_put(PICO_DEFAULT_LED_PIN, 1);
+            temp_write(0.0);
+        }
+        if (temp_res > 100)
+        {
+            gpio_put(DIR_PIN, 1);
+            for (size_t i = 0; i < 200; i++)
+            {
+                gpio_put(STEP_PIN, 1);
+                sleep_ms(500);
+                gpio_put(STEP_PIN, 0);
+                sleep_ms(500);
+            }
+            
+        }
+        
         sleep_ms(1000);
     }
 }
