@@ -261,7 +261,7 @@ bool home_shoulder()
 
 void print_state_joints()
 {
-    printf("%.3f,%.3f,%.3f",
+    printf("%.3f,%.3f,%.3f\n",
            slidebase_joint.position, -base_joint.position, shoulder_joint.position);
     /*printf("Slide base: sp %.3f, pos: %.3f, \n", slidebase_joint.ref_position, slidebase_joint.position);
     printf("Base: sp %.3f, pos: %.3f, \n", base_joint.ref_position, base_joint.position);

@@ -134,7 +134,7 @@ void set_vel_mode(float mode, bool print_msg)
 
 void print_state_joints()
 {
-    printf("%.3f,%.3f,%.3f",
+    printf("%.3f,%.3f,%.3f\n",
            -elbow_joint.position, -wrist_left_joint.position, -wrist_right_joint.position);
 
     /*printf("%.3f,%.3f,%.3f,%.3f,%.3f,%.3f \n", slidebase_status, -base_status, shoulder_status,
