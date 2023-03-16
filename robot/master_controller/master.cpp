@@ -267,6 +267,14 @@ void print_state_joints()
     printf("Base: sp %.3f, pos: %.3f, \n", base_joint.ref_position, base_joint.position);
     printf("Shoulder: sp %.3f, pos: %.3f\n \n", shoulder_joint.ref_position, shoulder_joint.position);*/
 }
+void print_vel_joints()
+{
+    printf("%.3f,%.3f,%.3f\n",
+           slidebase_joint.velocity, base_joint.velocity, shoulder_joint.velocity);
+    /*printf("Slide base: sp %.3f, pos: %.3f, \n", slidebase_joint.ref_position, slidebase_joint.position);
+    printf("Base: sp %.3f, pos: %.3f, \n", base_joint.ref_position, base_joint.position);
+    printf("Shoulder: sp %.3f, pos: %.3f\n \n", shoulder_joint.ref_position, shoulder_joint.position);*/
+}
 
 void send_info_slave(float *result, bool pos_mode)
 {
@@ -334,6 +342,9 @@ void command_callback(char *buffer)
         break;
     case (READ_ENCODER):
         print_state_joints();
+        break;
+    case (READ_VEL_ENCODER):
+        print_vel_joints();
         break;
     case (SET_VEL_MODE):
         token = strtok(NULL, " ");

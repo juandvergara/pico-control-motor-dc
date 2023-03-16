@@ -562,6 +562,9 @@ void command_callback(char *buffer)
     case (READ_ENCODER):
         print_state_joints();
         break;
+    case (READ_VEL_ENCODER):
+        print_vel_joints();
+        break;
     case (SET_VEL_MODE):
         token = strtok(NULL, " ");
         float mode;
