@@ -7,5 +7,6 @@
 #define UNSET_VEL_MODE 'n'
 #define SEND_SLAVE 'r'
 #define CLEAR_JOINTS 'c'
+#define SET_HOTEND_TEMPERATURE 't'
 
 #define PRINT_STATE 'e'
