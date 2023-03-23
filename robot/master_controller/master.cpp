@@ -21,31 +21,15 @@
 
 #define DEG_S 8.0f
 
-static int SLAVE_ADDR = 0x15;
-
 struct Joint
 {
-    float position = 0;
-    float velocity = 0;
-    float effort = 0;
-    float ref_position = 0;
-    float ref_velocity = 0;
+    float position = 0, velocity = 0, effort = 0;
+    float ref_position = 0, ref_velocity = 0;
 };
 
-Joint slidebase_joint;
-Joint base_joint;
-Joint shoulder_joint;
-
-DCMotor slidebase_motor(M0_ENA_PIN, M0_ENB_PIN);
-DCMotor base_motor(M1_ENA_PIN, M1_ENB_PIN);
-DCMotor shoulder_motor(M2_ENA_PIN, M2_ENB_PIN);
-
-Encoder slidebase_encoder(M0_ENC_A_PIN, M0_ENC_B_PIN);
-Encoder base_encoder(M1_ENC_A_PIN, M1_ENC_B_PIN);
-Encoder shoulder_encoder(M2_ENC_A_PIN, M2_ENC_B_PIN);
-
-/*float PID_param1[3] = {2.0, 0.5, 0.5};
-float PID_param2[3] = {2.0, 0.5, 0.5};*/
+Joint slidebase_joint, base_joint, shoulder_joint;
+DCMotor slidebase_motor{M0_ENA_PIN, M0_ENB_PIN}, base_motor{M1_ENA_PIN, M1_ENB_PIN}, shoulder_motor{M2_ENA_PIN, M2_ENB_PIN};
+Encoder slidebase_encoder{M0_ENC_A_PIN, M0_ENC_B_PIN}, base_encoder{M1_ENC_A_PIN, M1_ENC_B_PIN}, shoulder_encoder{M2_ENC_A_PIN, M2_ENC_B_PIN};
 
 float kp1 = 0.2;
 float ki1 = 0.00008;
@@ -58,32 +42,40 @@ float v1Prev = 0.0;
 float v2Prev = 0.0;
 float v3Prev = 0.0;
 
-float result[50];
-uint8_t command_slave;
-
-uint8_t *target_slave1, *target_slave2, *target_slave3;
-uint8_t *status_slidebase, *status_base, *status_shoulder;
-
 uint32_t sample_time_ms = 10;
-float pid_rate;
+float pid_rate = float(sample_time_ms) / 1000.0f;
 
 PID PID_slidebase(&slidebase_joint.position, &slidebase_joint.velocity, &slidebase_joint.effort, &slidebase_joint.ref_position, &slidebase_joint.ref_velocity,
-                  kp1, ki1, kd1, sample_time_ms);
-PID PID_base(&base_joint.position, &base_joint.velocity, &base_joint.effort, &base_joint.ref_position, &base_joint.ref_velocity,
-             kp2, ki2, kd2, sample_time_ms);
-PID PID_shoulder(&shoulder_joint.position, &shoulder_joint.velocity, &shoulder_joint.effort, &shoulder_joint.ref_position, &shoulder_joint.ref_velocity,
+                  kp1, ki1, kd1, sample_time_ms),
+    PID_base(&base_joint.position, &base_joint.velocity, &base_joint.effort, &base_joint.ref_position, &base_joint.ref_velocity,
+             kp2, ki2, kd2, sample_time_ms),
+    PID_shoulder(&shoulder_joint.position, &shoulder_joint.velocity, &shoulder_joint.effort, &shoulder_joint.ref_position, &shoulder_joint.ref_velocity,
                  kp2, ki2, kd2, sample_time_ms);
 
-uint32_t millis()
+uint32_t millis() { return to_ms_since_boot(get_absolute_time()); }
+
+void initRobot()
 {
-    return to_ms_since_boot(get_absolute_time());
+    slidebase_motor.write(0.0);
+    base_motor.write(0.0);
+    shoulder_motor.write(0.0);
+
+    PID_slidebase.set_output_limits(-1.0f, 1.0f);
+    PID_base.set_output_limits(-1.0f, 1.0f);
+    PID_shoulder.set_output_limits(-1.0f, 1.0f);
+
+    gpio_init(M0_HOME_SW);
+    gpio_pull_up(M0_HOME_SW);
+    gpio_init(M1_HOME_SW);
+    gpio_pull_up(M1_HOME_SW);
+    gpio_init(M2_HOME_SW);
+    gpio_pull_up(M2_HOME_SW);
 }
 
 void set_vel_mode(float mode, bool print_msg)
 {
     if (mode == 1.0)
     {
-        command_slave = SET_VEL_MODE;
         if (print_msg)
             printf("Velocity control mode on \n");
         PID_slidebase.set_gains(0.0, 0.0, kd1);
@@ -92,7 +84,6 @@ void set_vel_mode(float mode, bool print_msg)
     }
     else if (mode == 0.0)
     {
-        command_slave = UNSET_VEL_MODE;
         if (print_msg)
             printf("Velocity control mode off \n");
         slidebase_joint.ref_position = slidebase_joint.position;
@@ -112,150 +103,83 @@ void set_vel_mode(float mode, bool print_msg)
 bool home_body()
 {
     bool base_home = false;
-
     float initial_time, current_time;
-
-    float theta0, dot_theta0, thetaf, dot_thetaf, t_final;
-    float a, b, c, d;
 
     while (!base_home)
     {
-        if (gpio_get(M1_HOME_SW))
+        float theta0 = base_joint.position, dot_theta0 = 0, thetaf, dot_thetaf = 0, t_final;
+        float a, b, c, d;
+
+        printf("Fixing body home \n");
+
+        thetaf = gpio_get(M1_HOME_SW) ? 90 : -20;
+
+        t_final = abs(thetaf - theta0) / DEG_S;
+        a = theta0;
+        b = dot_theta0;
+        c = 3.0 * (thetaf - theta0) / pow(t_final, 2) - 2 * dot_theta0 / pow(t_final, 2) - dot_thetaf / pow(t_final, 2);
+        d = -2.0 * (thetaf - theta0) / pow(t_final, 3) + (dot_thetaf - dot_theta0) / pow(t_final, 2);
+
+        initial_time = millis() / 1e3;
+        current_time = initial_time;
+
+        while ((current_time - initial_time) < t_final)
         {
-            printf("Fixing body home \n");
-            theta0 = base_joint.position;
-            dot_theta0 = 0;
-            thetaf = 90;
-            dot_thetaf = 0;
-
-            t_final = abs(thetaf - theta0) / DEG_S;
-
-            a = theta0;
-            b = dot_theta0;
-            c = 3.0 * (thetaf - theta0) / pow(t_final, 2) - 2 * dot_theta0 / pow(t_final, 2) - dot_thetaf / pow(t_final, 2);
-            d = -2.0 * (thetaf - theta0) / pow(t_final, 3) + (dot_thetaf - dot_theta0) / pow(t_final, 2);
-
-            initial_time = millis() / 1e3;
-            current_time = initial_time;
-
-            while ((current_time - initial_time) < t_final)
+            float time_process = current_time - initial_time;
+            base_joint.ref_position = a + b * time_process + c * pow(time_process, 2) + d * pow(time_process, 3);
+            base_joint.ref_velocity = b + 2 * c * time_process + 3 * d * pow(time_process, 2);
+            if (!gpio_get(M1_HOME_SW))
             {
-                float time_process = current_time - initial_time;
-                base_joint.ref_position = a + b * time_process + c * pow(time_process, 2) + d * pow(time_process, 3);
-                base_joint.ref_velocity = b + 2 * c * time_process + 3 * d * pow(time_process, 2);
-                if (!gpio_get(M1_HOME_SW))
-                {
-                    base_encoder.encoder_pos = 0;
-                    base_joint.ref_position = 0;
-                    base_joint.ref_velocity = 0;
-                    base_home = true;
-                    break;
-                }
-                current_time = millis() / 1e3;
+                base_encoder.encoder_pos = 0;
+                base_joint.ref_position = 0;
+                base_joint.ref_velocity = 0;
+                base_home = true;
+                break;
             }
-        }
-        else
-        {
-            theta0 = base_joint.position;
-            dot_theta0 = 0;
-            thetaf = -20;
-            dot_thetaf = 0;
-
-            t_final = abs(thetaf - theta0) / DEG_S;
-
-            a = theta0;
-            b = dot_theta0;
-            c = 3.0 * (thetaf - theta0) / pow(t_final, 2) - 2 * dot_theta0 / pow(t_final, 2) - dot_thetaf / pow(t_final, 2);
-            d = -2.0 * (thetaf - theta0) / pow(t_final, 3) + (dot_thetaf - dot_theta0) / pow(t_final, 2);
-
-            initial_time = millis() / 1e3;
-            current_time = initial_time;
-
-            while ((current_time - initial_time) < t_final)
-            {
-                float time_process = current_time - initial_time;
-                base_joint.ref_position = a + b * time_process + c * pow(time_process, 2) + d * pow(time_process, 3);
-                base_joint.ref_velocity = b + 2 * c * time_process + 3 * d * pow(time_process, 2);
-                current_time = millis() / 1e3;
-            }
+            current_time = millis() / 1e3;
         }
     }
-
     return base_home;
 }
 
 bool home_shoulder()
 {
     bool shoulder_home = false;
-
     float initial_time, current_time;
-
-    float theta0, dot_theta0, thetaf, dot_thetaf, t_final;
-    float a, b, c, d;
 
     while (!shoulder_home)
     {
-        if (gpio_get(M2_HOME_SW))
+        float theta0 = shoulder_joint.position, dot_theta0 = 0, thetaf, dot_thetaf = 0, t_final;
+        float a, b, c, d;
+
+        printf("Fixing shoulder home \n");
+
+        thetaf = gpio_get(M2_HOME_SW) ? 180 : -10;
+
+        a = theta0;
+        b = dot_theta0;
+        c = 3.0 * (thetaf - theta0) / pow(t_final, 2) - 2 * dot_theta0 / pow(t_final, 2) - dot_thetaf / pow(t_final, 2);
+        d = -2.0 * (thetaf - theta0) / pow(t_final, 3) + (dot_thetaf - dot_theta0) / pow(t_final, 2);
+
+        initial_time = millis() / 1e3;
+        current_time = initial_time;
+
+        while ((current_time - initial_time) < t_final)
         {
-            printf("Fixing shoulder home \n");
-            theta0 = shoulder_joint.position;
-            dot_theta0 = 0;
-            thetaf = 180;
-            dot_thetaf = 0;
-
-            t_final = abs(thetaf - theta0) / DEG_S;
-
-            a = theta0;
-            b = dot_theta0;
-            c = 3.0 * (thetaf - theta0) / pow(t_final, 2) - 2 * dot_theta0 / pow(t_final, 2) - dot_thetaf / pow(t_final, 2);
-            d = -2.0 * (thetaf - theta0) / pow(t_final, 3) + (dot_thetaf - dot_theta0) / pow(t_final, 2);
-
-            initial_time = millis() / 1e3;
-            current_time = initial_time;
-
-            while ((current_time - initial_time) < t_final)
+            float time_process = current_time - initial_time;
+            shoulder_joint.ref_position = a + b * time_process + c * pow(time_process, 2) + d * pow(time_process, 3);
+            shoulder_joint.ref_velocity = b + 2 * c * time_process + 3 * d * pow(time_process, 2);
+            if (!gpio_get(M2_HOME_SW))
             {
-                float time_process = current_time - initial_time;
-                shoulder_joint.ref_position = a + b * time_process + c * pow(time_process, 2) + d * pow(time_process, 3);
-                shoulder_joint.ref_velocity = b + 2 * c * time_process + 3 * d * pow(time_process, 2);
-                if (!gpio_get(M2_HOME_SW))
-                {
-                    shoulder_encoder.encoder_pos = 0;
-                    shoulder_joint.ref_position = 0;
-                    shoulder_joint.ref_velocity = 0;
-                    shoulder_home = true;
-                    break;
-                }
-                current_time = millis() / 1e3;
+                shoulder_encoder.encoder_pos = 0;
+                shoulder_joint.ref_position = 0;
+                shoulder_joint.ref_velocity = 0;
+                shoulder_home = true;
+                break;
             }
-        }
-        else
-        {
-            theta0 = shoulder_joint.position;
-            dot_theta0 = 0;
-            thetaf = -10;
-            dot_thetaf = 0;
-
-            t_final = abs(thetaf - theta0) / DEG_S;
-
-            a = theta0;
-            b = dot_theta0;
-            c = 3.0 * (thetaf - theta0) / pow(t_final, 2) - 2 * dot_theta0 / pow(t_final, 2) - dot_thetaf / pow(t_final, 2);
-            d = -2.0 * (thetaf - theta0) / pow(t_final, 3) + (dot_thetaf - dot_theta0) / pow(t_final, 2);
-
-            initial_time = millis() / 1e3;
-            current_time = initial_time;
-
-            while ((current_time - initial_time) < t_final)
-            {
-                float time_process = current_time - initial_time;
-                shoulder_joint.ref_position = a + b * time_process + c * pow(time_process, 2) + d * pow(time_process, 3);
-                shoulder_joint.ref_velocity = b + 2 * c * time_process + 3 * d * pow(time_process, 2);
-                current_time = millis() / 1e3;
-            }
+            current_time = millis() / 1e3;
         }
     }
-
     return shoulder_home;
 }
 
@@ -263,38 +187,12 @@ void print_state_joints()
 {
     printf("%.3f,%.3f,%.3f\n",
            slidebase_joint.position, -base_joint.position, shoulder_joint.position);
-    /*printf("Slide base: sp %.3f, pos: %.3f, \n", slidebase_joint.ref_position, slidebase_joint.position);
-    printf("Base: sp %.3f, pos: %.3f, \n", base_joint.ref_position, base_joint.position);
-    printf("Shoulder: sp %.3f, pos: %.3f\n \n", shoulder_joint.ref_position, shoulder_joint.position);*/
 }
+
 void print_vel_joints()
 {
     printf("%.3f,%.3f,%.3f\n",
            slidebase_joint.velocity, base_joint.velocity, shoulder_joint.velocity);
-    /*printf("Slide base: sp %.3f, pos: %.3f, \n", slidebase_joint.ref_position, slidebase_joint.position);
-    printf("Base: sp %.3f, pos: %.3f, \n", base_joint.ref_position, base_joint.position);
-    printf("Shoulder: sp %.3f, pos: %.3f\n \n", shoulder_joint.ref_position, shoulder_joint.position);*/
-}
-
-void send_info_slave(float *result, bool pos_mode)
-{
-    // printf("Sending to slave %.5f, %.5f, %.5f \n", result[3], result[4], result[5]);
-    target_slave1 = (uint8_t *)(&result[3]);
-    target_slave2 = (uint8_t *)(&result[4]);
-    target_slave3 = (uint8_t *)(&result[5]);
-
-    if (pos_mode)
-    {
-        status_slidebase = (uint8_t *)(&slidebase_joint.position);
-        status_base = (uint8_t *)(&base_joint.position);
-        status_shoulder = (uint8_t *)(&shoulder_joint.position);
-    }
-    else
-    {
-        status_slidebase = (uint8_t *)(&slidebase_joint.velocity);
-        status_base = (uint8_t *)(&base_joint.velocity);
-        status_shoulder = (uint8_t *)(&shoulder_joint.velocity);
-    }
 }
 
 void command_callback(char *buffer)
@@ -304,10 +202,11 @@ void command_callback(char *buffer)
     char *token = strtok(buffer, " ");
     char command = *token;
 
+    float result[50];
+
     switch (command)
     {
     case (COMMAND_POS):
-        // printf("Set position goal was call\n");
         token = strtok(NULL, " ");
 
         result[0] = strtof(token, &previous);
@@ -323,7 +222,6 @@ void command_callback(char *buffer)
         break;
 
     case (COMMAND_VEL):
-        printf("Set velocity goal was call\n");
         token = strtok(NULL, " ");
 
         result[0] = strtof(token, &previous);
@@ -364,12 +262,9 @@ void command_callback(char *buffer)
         break;
     case (CLEAR_JOINTS):
         printf("Encoder variables cleaned! \n");
-        slidebase_encoder.encoder_pos = 0;
-        slidebase_joint.ref_position = 0;
-        base_encoder.encoder_pos = 0;
-        base_joint.ref_position = 0;
-        shoulder_encoder.encoder_pos = 0;
-        shoulder_joint.ref_position = 0;
+        slidebase_encoder.encoder_pos = slidebase_joint.ref_position = 0;
+        base_encoder.encoder_pos = base_joint.ref_position = 0;
+        shoulder_encoder.encoder_pos = shoulder_joint.ref_position = 0;
         break;
     default:
         printf("Invalid command \n");
@@ -397,43 +292,11 @@ void process_user_input(int input_std)
     gpio_put(PICO_DEFAULT_LED_PIN, 0);
 }
 
-void initRobot()
-{
-    slidebase_motor.write(0.0);
-    base_motor.write(0.0);
-    shoulder_motor.write(0.0);
-
-    PID_slidebase.set_output_limits(-1.0f, 1.0f);
-    PID_base.set_output_limits(-1.0f, 1.0f);
-    PID_shoulder.set_output_limits(-1.0f, 1.0f);
-
-    slidebase_joint.ref_position = 0;
-    base_joint.ref_position = 0;
-    shoulder_joint.ref_position = 0;
-
-    pid_rate = float(sample_time_ms) / 1000.0f;
-
-    gpio_init(M0_HOME_SW);
-    gpio_pull_up(M0_HOME_SW);
-    gpio_init(M1_HOME_SW);
-    gpio_pull_up(M1_HOME_SW);
-    gpio_init(M2_HOME_SW);
-    gpio_pull_up(M2_HOME_SW);
-}
-
 void updatePid(int32_t joint1_encoder_ticks, int32_t joint2_encoder_ticks, int32_t joint3_encoder_ticks)
 {
-    int32_t joint1_ticks = joint1_encoder_ticks;
-    int32_t joint2_ticks = joint2_encoder_ticks;
-    int32_t joint3_ticks = joint3_encoder_ticks;
-
-    float motor1_vel = 0;
-    float motor2_vel = 0;
-    float motor3_vel = 0;
-
-    float position_slidebase = float(joint1_ticks) * SLIDEBASE_RELATION;
-    float position_base = float(joint2_ticks) * BASE_RELATION;
-    float position_shoulder = float(joint3_ticks) * SHOULDER_RELATION;
+    float position_slidebase = float(joint1_encoder_ticks) * SLIDEBASE_RELATION;
+    float position_base = float(joint2_encoder_ticks) * BASE_RELATION;
+    float position_shoulder = float(joint3_encoder_ticks) * SHOULDER_RELATION;
 
     float velocity_slidebase = (position_slidebase - slidebase_joint.position) / pid_rate;
     float velocity_base = (position_base - base_joint.position) / pid_rate;
@@ -455,13 +318,9 @@ void updatePid(int32_t joint1_encoder_ticks, int32_t joint2_encoder_ticks, int32
     PID_base.compute();
     PID_shoulder.compute();
 
-    M0_ENC_INVERTED ? motor1_vel = -slidebase_joint.effort : motor1_vel = slidebase_joint.effort;
-    M1_ENC_INVERTED ? motor2_vel = -base_joint.effort : motor2_vel = base_joint.effort;
-    M2_ENC_INVERTED ? motor3_vel = -shoulder_joint.effort : motor3_vel = shoulder_joint.effort;
-
-    slidebase_motor.write(motor1_vel);
-    base_motor.write(motor2_vel);
-    shoulder_motor.write(motor3_vel);
+    slidebase_motor.write(M0_ENC_INVERTED ? -slidebase_joint.effort : slidebase_joint.effort);
+    base_motor.write(M1_ENC_INVERTED ? -base_joint.effort : base_joint.effort);
+    shoulder_motor.write(M2_ENC_INVERTED ? -shoulder_joint.effort : shoulder_joint.effort);
 }
 
 bool timerCallback(repeating_timer_t *rt)
