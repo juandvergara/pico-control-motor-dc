@@ -6,8 +6,6 @@
 #define PID_CONTROLLER_H
 
 #include "pico/stdlib.h"
-#include "dc_motor.h"
-#include "encoder_cuadratura.h"
 #include "cstdio"
 
 class PID {
@@ -38,4 +36,4 @@ private:
 
 };
 
-#endif PID_CONTROLLER_H
+#endif //PID_CONTROLLER_H
