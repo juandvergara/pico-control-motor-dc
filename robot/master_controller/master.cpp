@@ -4,9 +4,11 @@
 #include "pico/stdlib.h"
 #include "pico/multicore.h"
 #include "hardware/i2c.h"
+#include "hardware/adc.h"
 #include "dc_motor_v2.h"
 #include "encoder.h"
 #include "pid_filter.h"
+#include "pid_controller.h"
 #include "command.h"
 
 #define MASTER
@@ -21,11 +23,28 @@
 
 #define DEG_S 8.0f
 
+#define TOP_TEMP 4095
+#define CONTROL_PIN 5
+#define ADC_PIN 26
+#define ADC_CHANNEL 0
+
 struct Joint
 {
     float position = 0, velocity = 0, effort = 0;
     float ref_position = 0, ref_velocity = 0;
 };
+
+uint32_t temp_sample_time_ms = 500;
+uint _slice_num;
+uint _channel;
+
+float target_temperture, actual_temperture, output_temperture, previous_temperature;
+
+float kp = 0.03324 / 2.0;
+float ki = 0.000538 / 2.0; // 0.0538
+float kd = 0.07552 / 2.0;  // 0.7552;
+
+PID PID_hotend(&actual_temperture, &output_temperture, &target_temperture, kp, ki, kd, temp_sample_time_ms);
 
 Joint slidebase_joint, base_joint, shoulder_joint;
 DCMotor slidebase_motor{M0_ENA_PIN, M0_ENB_PIN}, base_motor{M1_ENA_PIN, M1_ENB_PIN}, shoulder_motor{M2_ENA_PIN, M2_ENB_PIN};
@@ -45,8 +64,8 @@ float v3Prev = 0.0;
 uint32_t sample_time_ms = 10;
 float pid_rate = float(sample_time_ms) / 1000.0f;
 
-PID PID_slidebase(&slidebase_joint.position, &slidebase_joint.velocity, &slidebase_joint.effort, &slidebase_joint.ref_position, &slidebase_joint.ref_velocity,
-                  kp1, ki1, kd1, sample_time_ms),
+PID_V2 PID_slidebase(&slidebase_joint.position, &slidebase_joint.velocity, &slidebase_joint.effort, &slidebase_joint.ref_position, &slidebase_joint.ref_velocity,
+                     kp1, ki1, kd1, sample_time_ms),
     PID_base(&base_joint.position, &base_joint.velocity, &base_joint.effort, &base_joint.ref_position, &base_joint.ref_velocity,
              kp2, ki2, kd2, sample_time_ms),
     PID_shoulder(&shoulder_joint.position, &shoulder_joint.velocity, &shoulder_joint.effort, &shoulder_joint.ref_position, &shoulder_joint.ref_velocity,
@@ -54,6 +73,70 @@ PID PID_slidebase(&slidebase_joint.position, &slidebase_joint.velocity, &slideba
 
 uint32_t millis() { return to_ms_since_boot(get_absolute_time()); }
 
+/*TEMPERTURE CONTROL*/
+void temp_init()
+{
+    _slice_num = pwm_gpio_to_slice_num(CONTROL_PIN);
+    _channel = pwm_gpio_to_channel(CONTROL_PIN);
+    gpio_set_function(CONTROL_PIN, GPIO_FUNC_PWM);
+    pwm_set_wrap(_slice_num, TOP_TEMP);
+    pwm_set_chan_level(_slice_num, _channel, 0);
+
+    pwm_set_enabled(_slice_num, true);
+
+    adc_init();
+    adc_gpio_init(ADC_PIN);
+    adc_select_input(ADC_CHANNEL);
+
+    PID_hotend.set_output_limits(0.0, 1.0);
+}
+
+void temp_write(float duty_cycle)
+{
+    if (duty_cycle > 1.0f)
+        duty_cycle = 1.0f;
+    if (duty_cycle < -1.0f)
+        duty_cycle = -1.0f;
+    pwm_set_chan_level(_slice_num, _channel, (int16_t)(duty_cycle * TOP_TEMP));
+    pwm_set_enabled(_slice_num, true);
+}
+
+void temp_calculate()
+{
+    float temp = -20;
+
+    const float LUT[][2] = {
+        {92, 300}, {100, 295}, {108, 290}, {112, 285}, {124, 280}, {132, 275}, {140, 270}, {152, 265}, {164, 260}, {176, 255}, {192, 250}, {208, 245}, {224, 240}, {244, 235}, {264, 230}, {284, 225}, {312, 220}, {336, 215}, {368, 210}, {400, 205}, {436, 200}, {480, 195}, {524, 190}, {572, 185}, {624, 180}, {685, 175}, {749, 170}, {821, 165}, {897, 160}, {981, 155}, {1073, 150}, {1173, 145}, {1281, 140}, {1393, 135}, {1517, 130}, {1645, 125}, {1781, 120}, {1921, 115}, {2066, 110}, {2214, 105}, {2366, 100}, {2514, 95}, {2662, 90}, {2810, 85}, {2950, 80}, {3082, 75}, {3206, 70}, {3322, 65}, {3431, 60}, {3527, 55}, {3615, 50}, {3691, 45}, {3759, 40}, {3819, 35}, {3867, 30}, {3911, 25}, {3943, 20}, {3975, 15}, {3999, 10}, {4019, 5}, {4035, 0}, {4051, -5}, {4067, -10}, {4083, -15}};
+
+    uint16_t raw_read = adc_read();
+
+    for (size_t i = 0; i < 64; i++)
+    {
+        if (raw_read >= LUT[i][0] && raw_read <= LUT[i + 1][0])
+        {
+            temp = ((LUT[i + 1][1] - LUT[i][1]) / (LUT[i + 1][0] - LUT[i][0])) * (raw_read - LUT[i + 1][0]) + LUT[i + 1][1];
+        }
+    }
+
+    actual_temperture = 0.854 * actual_temperture + 0.0728 * temp + 0.0728 * previous_temperature;
+    previous_temperature = temp;
+
+    PID_hotend.compute();
+    temp_write(output_temperture);
+}
+
+bool temp_Callback(repeating_timer_t *rt)
+{
+    temp_calculate();
+    return true;
+}
+
+void set_hotend_temp(float target)
+{
+    target_temperture = target;
+}
+
+/*TEMPERTURE CONTROL*/
 void initRobot()
 {
     slidebase_motor.write(0.0);
@@ -244,6 +327,12 @@ void command_callback(char *buffer)
     case (READ_VEL_ENCODER):
         print_vel_joints();
         break;
+    case (SET_HOTEND_TEMPERATURE):
+        token = strtok(NULL, " ");
+        float target;
+        target = strtof(token, &previous);
+        set_hotend_temp(target);
+        break;
     case (SET_VEL_MODE):
         token = strtok(NULL, " ");
         float mode;
@@ -289,7 +378,7 @@ void process_user_input(int input_std)
         }
         input_std = getchar_timeout_us(0);
     }
-    gpio_put(PICO_DEFAULT_LED_PIN, 0);
+    // gpio_put(PICO_DEFAULT_LED_PIN, 0);
 }
 
 void updatePid(int32_t joint1_encoder_ticks, int32_t joint2_encoder_ticks, int32_t joint3_encoder_ticks)
@@ -355,6 +444,7 @@ int main()
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
     initRobot();
+    temp_init();
 
     multicore_launch_core1(core1_comm);
     sleep_ms(500);
@@ -369,11 +459,19 @@ int main()
         printf("Failure by not set timer!! \n");
     }
 
+    sleep_ms(200);
+    repeating_timer_t timer_temp;
+    if (!add_repeating_timer_ms(-temp_sample_time_ms, temp_Callback, NULL, &timer_temp))
+    {
+        printf("Failure by not set timer!! \n");
+    }
+
     while (true)
     {
         gpio_put(PICO_DEFAULT_LED_PIN, 0);
-        sleep_ms(200);
+        sleep_ms(250);
         gpio_put(PICO_DEFAULT_LED_PIN, 1);
-        sleep_ms(200);
+        sleep_ms(250);
+        printf("Actual temp %.3f, %.3f\n", actual_temperture, target_temperture);
     }
 }
