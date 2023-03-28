@@ -28,6 +28,7 @@ private:
     float target_temperture, actual_temperture, output_temperture, previous_temperature;
     uint _slice_num;
     uint _channel;
+    PID PID_hotend;
 };
 
 #endif

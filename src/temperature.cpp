@@ -6,8 +6,8 @@ float kp = 0.03324;
 float ki = 0.000538; 
 float kd = 0.07552;
 
-TEMP_PID::TEMP_PID(){
-    PID PID_hotend(&actual_temperture, &output_temperture, &target_temperture, kp, ki, kd, sample_time_ms);
+TEMP_PID::TEMP_PID(float* input, float* output, float* setpoint, float kp, float ki, float kd, uint32_t sample_time_ms){
+    PID PID_hotend(&input, &output, &setpoint, kp, ki, kd, sample_time_ms);
 }
 
 void TEMP_PID::temp_init()
