@@ -2,16 +2,16 @@
 // Created by pepe on 21/6/21.
 //
 
-#ifndef PID_CONTROLLER_H
-#define PID_CONTROLLER_H
+#ifndef PID_V2_CONTROLLER_H
+#define PID_V2_CONTROLLER_H
 
 #include "pico/stdlib.h"
 #include "cstdio"
 
-class PID
+class PID_V2
 {
 public:
-    PID(float *input, float *dot_input, float *output, float *setpoint, float *dot_setpoint,
+    PID_V2(float *input, float *dot_input, float *output, float *setpoint, float *dot_setpoint,
         float kp, float ki, float kd, uint32_t sample_time_ms);
     void compute(void);
     void set_output_limits(float min, float max);

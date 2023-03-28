@@ -1,6 +1,6 @@
 #include "pid_filter.h"
 
-PID::PID(float *input, float *dot_input, float *output, float *setpoint, float *dot_setpoint,
+PID_V2::PID_V2(float *input, float *dot_input, float *output, float *setpoint, float *dot_setpoint,
          float kp, float ki, float kd, uint32_t sample_time_ms)
     : _my_input(input), _my_dot_input(dot_input), _my_output(output), _my_setpoint(setpoint), _my_dot_setpoint(dot_setpoint),
       _sample_time_ms(sample_time_ms), _out_sum(0)
@@ -11,7 +11,7 @@ PID::PID(float *input, float *dot_input, float *output, float *setpoint, float *
     this->_last_output = 0.0;
 }
 
-void PID::set_sample_time(uint32_t new_sample_time_ms)
+void PID_V2::set_sample_time(uint32_t new_sample_time_ms)
 {
     float ratio = (float)new_sample_time_ms / _sample_time_ms;
 
@@ -20,7 +20,7 @@ void PID::set_sample_time(uint32_t new_sample_time_ms)
     _sample_time_ms = new_sample_time_ms;
 }
 
-void PID::set_gains(float kp, float ki, float kd)
+void PID_V2::set_gains(float kp, float ki, float kd)
 {
     if (kp < 0 || ki < 0 || kd < 0)
         return;
@@ -34,7 +34,7 @@ void PID::set_gains(float kp, float ki, float kd)
     _kd = kd;
 }
 
-void PID::set_output_limits(float min, float max)
+void PID_V2::set_output_limits(float min, float max)
 {
     if (min >= max)
         return;
@@ -52,7 +52,7 @@ void PID::set_output_limits(float min, float max)
         _out_sum = _out_min;
 }
 
-void PID::compute(void)
+void PID_V2::compute(void)
 {
     float input = *_my_input;
     float error = *_my_setpoint - input;
