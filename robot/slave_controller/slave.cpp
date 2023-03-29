@@ -46,7 +46,7 @@ float v3Prev = 0.0;
 uint32_t sample_time_ms = 10;
 float pid_rate = float(sample_time_ms) / 1000.0f;
 
-PID PID_elbow(&elbow_joint.position, &elbow_joint.velocity, &elbow_joint.effort, &elbow_joint.ref_position, &elbow_joint.ref_velocity,
+PID_V2 PID_elbow(&elbow_joint.position, &elbow_joint.velocity, &elbow_joint.effort, &elbow_joint.ref_position, &elbow_joint.ref_velocity,
               kp1, ki1, kd1, sample_time_ms),
     PID_wrist_left(&wrist_left_joint.position, &wrist_left_joint.velocity, &wrist_left_joint.effort, &wrist_left_joint.ref_position, &wrist_left_joint.ref_velocity,
                    kp2, ki2, kd2, sample_time_ms),
