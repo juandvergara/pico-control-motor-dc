@@ -12,6 +12,9 @@
 #define SLAVE
 #include "pins.h"
 
+#define STEP_PIN 0
+#define DIR_PIN 1
+
 #define SHOULDER_RELATION 0.008809710258418167f // 360.0f / (80.0f * 127.7f * 4.0f)
 #define ELBOW_RELATION 0.008809710258418167f    // 360.0f / (80.0f * 127.7f * 4.0f)
 #define WRIST_RELATION 0.038643194504079006f    // 0.03435114503816794f     // 0.03864325091758399f 360.0f / (80.0f * 65.5f * 2.0f)
@@ -47,11 +50,41 @@ uint32_t sample_time_ms = 10;
 float pid_rate = float(sample_time_ms) / 1000.0f;
 
 PID_V2 PID_elbow(&elbow_joint.position, &elbow_joint.velocity, &elbow_joint.effort, &elbow_joint.ref_position, &elbow_joint.ref_velocity,
-              kp1, ki1, kd1, sample_time_ms),
+                 kp1, ki1, kd1, sample_time_ms),
     PID_wrist_left(&wrist_left_joint.position, &wrist_left_joint.velocity, &wrist_left_joint.effort, &wrist_left_joint.ref_position, &wrist_left_joint.ref_velocity,
                    kp2, ki2, kd2, sample_time_ms),
     PID_wrist_right(&wrist_right_joint.position, &wrist_right_joint.velocity, &wrist_right_joint.effort, &wrist_right_joint.ref_position, &wrist_right_joint.ref_velocity,
                     kp2, ki2, kd2, sample_time_ms);
+
+/*STEPPER FUNC*/
+
+const uint STEPS_PER_REVOLUTION = 200;
+const uint MICROSTEPS = 32;
+const uint MS_DELAY = 1;
+
+float stepper_deg, stepper_speed;
+
+void step(bool dir)
+{
+    gpio_put(DIR_PIN, dir);
+    gpio_put(STEP_PIN, 1);
+    sleep_us(1);
+    gpio_put(STEP_PIN, 0);
+    sleep_ms(MS_DELAY);
+}
+
+void rotateDegrees(float degrees, float speed)
+{
+    int steps = (int)round(degrees * (STEPS_PER_REVOLUTION / 360.0) * MICROSTEPS);
+    float delay = 1.0 / speed;
+    for (int i = 0; i < steps; i++)
+    {
+        step(1);
+        sleep_ms(delay * 1000);
+    }
+}
+
+/*STEPPER FUNC*/
 
 uint32_t millis() { return to_ms_since_boot(get_absolute_time()); }
 
@@ -71,6 +104,11 @@ void initRobot()
     gpio_pull_up(M4_HOME_SW);
     gpio_init(M5_HOME_SW);
     gpio_pull_up(M5_HOME_SW);
+
+    gpio_init(STEP_PIN);
+    gpio_init(DIR_PIN);
+    gpio_set_dir(STEP_PIN, GPIO_OUT);
+    gpio_set_dir(DIR_PIN, GPIO_OUT);
 }
 
 void set_vel_mode(float mode, bool print_msg)
@@ -321,6 +359,14 @@ void command_callback(char *buffer)
     case (READ_VEL_ENCODER):
         print_vel_joints();
         break;
+    case (SET_EXTRUDER):
+        token = strtok(NULL, " ");
+
+        stepper_deg = strtof(token, &previous);
+        stepper_speed = strtof(previous + 1, &current);
+
+        printf("Degrees %.3f and speed %.3f \n", stepper_deg, stepper_speed);
+        break;
     case (SET_VEL_MODE):
         token = strtok(NULL, " ");
         float mode;
@@ -450,9 +496,11 @@ int main()
 
     while (true)
     {
+        rotateDegrees(stepper_deg, stepper_speed);
+        stepper_deg = 0;
         gpio_put(PICO_DEFAULT_LED_PIN, 0);
-        sleep_ms(200);
+        sleep_ms(100);
         gpio_put(PICO_DEFAULT_LED_PIN, 1);
-        sleep_ms(200);
+        sleep_ms(100);
     }
 }
