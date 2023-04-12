@@ -4,9 +4,10 @@
 #define READ_VEL_ENCODER 'a'
 #define HOME 'h'
 #define SET_VEL_MODE 's'
-#define UNSET_VEL_MODE 'n'
+#define UNSET_VEL_MODE 'u'
 #define SEND_SLAVE 'r'
 #define CLEAR_JOINTS 'c'
 #define SET_HOTEND_TEMPERATURE 't'
+#define SET_EXTRUDER 'n'
 
 #define PRINT_STATE 'e'
