@@ -25,7 +25,7 @@ void rotateDegrees(int degrees, int speed)
     for (int i = 0; i < steps; i++)
     {
         step(1);
-        sleep_us(delay * 1000000);
+        sleep_ms(delay * 1000);
     }
 }
 
