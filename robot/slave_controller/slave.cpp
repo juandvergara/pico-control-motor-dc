@@ -58,30 +58,53 @@ PID_V2 PID_elbow(&elbow_joint.position, &elbow_joint.velocity, &elbow_joint.effo
 
 /*STEPPER FUNC*/
 
-const uint STEPS_PER_REVOLUTION = 200;
-const uint MICROSTEPS = 32;
-const uint MS_DELAY = 1;
+// const uint STEPS_PER_REVOLUTION = 200;
+// const uint MICROSTEPS = 32;
+// const uint MS_DELAY = 1;
+
+// Definición de constantes
+#define ANGLE_PER_STEP 1.8 // Ángulo que se desplaza el motor por cada paso
+#define STEPS_PER_REVOLUTION 200 // Número de pasos que da una revolución completa
+#define MICROSECONDS_PER_MICROSTEP 31.25
 
 float stepper_deg, stepper_speed;
 
-void step(bool dir)
-{
-    gpio_put(DIR_PIN, dir);
+// void step(bool dir)
+// {
+//     gpio_put(DIR_PIN, dir);
+//     gpio_put(STEP_PIN, 1);
+//     sleep_us(1);
+//     gpio_put(STEP_PIN, 0);
+//     sleep_ms(MS_DELAY);
+// }
+
+// void rotateDegrees(float degrees, float speed)
+// {
+//     int steps = (int)round(degrees * (STEPS_PER_REVOLUTION / 360.0) * MICROSTEPS);
+//     float delay = 1.0 / speed;
+//     for (int i = 0; i < steps; i++)
+//     {
+//         step(0);
+//         sleep_ms(delay * 1000);
+//     }
+// }
+
+void moveSteps(int steps, bool direction, int speed) {
+  gpio_put(DIR_PIN, direction);
+  uint32_t delay_us = speed / 2; // Cálculo del retardo en microsegundos (la mitad del tiempo que está activo el pulso)
+  for (int i = 0; i < abs(steps); i++) {
     gpio_put(STEP_PIN, 1);
-    sleep_us(1);
+    sleep_us(delay_us);
     gpio_put(STEP_PIN, 0);
-    sleep_ms(MS_DELAY);
+    sleep_us(delay_us);
+  }
 }
 
-void rotateDegrees(float degrees, float speed)
-{
-    int steps = (int)round(degrees * (STEPS_PER_REVOLUTION / 360.0) * MICROSTEPS);
-    float delay = 1.0 / speed;
-    for (int i = 0; i < steps; i++)
-    {
-        step(1);
-        sleep_ms(delay * 1000);
-    }
+void moveDegrees(float degrees, int speed) {
+  float steps = degrees / ANGLE_PER_STEP * 32;
+  bool direction = (degrees > 0);
+  int microseconds_per_step = 1000000 / (speed * 32); // Cálculo de la duración de cada paso completo
+  moveSteps(steps, direction, microseconds_per_step);
 }
 
 /*STEPPER FUNC*/
@@ -496,7 +519,7 @@ int main()
 
     while (true)
     {
-        rotateDegrees(stepper_deg, stepper_speed);
+        moveDegrees(stepper_deg, stepper_speed);
         stepper_deg = 0;
         gpio_put(PICO_DEFAULT_LED_PIN, 0);
         sleep_ms(100);
