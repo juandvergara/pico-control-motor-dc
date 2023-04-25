@@ -239,6 +239,7 @@ bool home_shoulder()
 
         thetaf = gpio_get(M2_HOME_SW) ? 180 : -10;
 
+        t_final = abs(thetaf - theta0) / DEG_S;
         a = theta0;
         b = dot_theta0;
         c = 3.0 * (thetaf - theta0) / pow(t_final, 2) - 2 * dot_theta0 / pow(t_final, 2) - dot_thetaf / pow(t_final, 2);
