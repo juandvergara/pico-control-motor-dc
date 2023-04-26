@@ -63,11 +63,11 @@ PID_V2 PID_elbow(&elbow_joint.position, &elbow_joint.velocity, &elbow_joint.effo
 // const uint MS_DELAY = 1;
 
 // Definición de constantes
-#define ANGLE_PER_STEP 1.8 // Ángulo que se desplaza el motor por cada paso
+#define ANGLE_PER_STEP 1.8       // Ángulo que se desplaza el motor por cada paso
 #define STEPS_PER_REVOLUTION 200 // Número de pasos que da una revolución completa
 #define MICROSECONDS_PER_MICROSTEP 31.25
 
-float stepper_deg, stepper_speed;
+float stepper_deg, stepper_speed, stepper_pos;
 
 // void step(bool dir)
 // {
@@ -89,22 +89,27 @@ float stepper_deg, stepper_speed;
 //     }
 // }
 
-void moveSteps(int steps, bool direction, int speed) {
-  gpio_put(DIR_PIN, direction);
-  uint32_t delay_us = speed / 2; // Cálculo del retardo en microsegundos (la mitad del tiempo que está activo el pulso)
-  for (int i = 0; i < abs(steps); i++) {
-    gpio_put(STEP_PIN, 1);
-    sleep_us(delay_us);
-    gpio_put(STEP_PIN, 0);
-    sleep_us(delay_us);
-  }
+void moveSteps(int steps, bool direction, int speed)
+{
+    gpio_put(DIR_PIN, direction);
+    uint32_t delay_us = speed / 2; // Cálculo del retardo en microsegundos (la mitad del tiempo que está activo el pulso)
+    float negative = direction ? -1.0 : 1.0;
+    for (int i = 0; i < abs(steps); i++)
+    {
+        gpio_put(STEP_PIN, 1);
+        sleep_us(delay_us);
+        gpio_put(STEP_PIN, 0);
+        sleep_us(delay_us);
+        stepper_pos = i * negative * (ANGLE_PER_STEP / 32);
+    }
 }
 
-void moveDegrees(float degrees, int speed) {
-  float steps = degrees / ANGLE_PER_STEP * 32;
-  bool direction = (degrees > 0);
-  int microseconds_per_step = 1000000 / (speed * 32); // Cálculo de la duración de cada paso completo
-  moveSteps(steps, direction, microseconds_per_step);
+void moveDegrees(float degrees, int speed)
+{
+    float steps = degrees / ANGLE_PER_STEP * 32;
+    bool direction = (degrees < 0);
+    int microseconds_per_step = 1000000 / (speed * 32); // Cálculo de la duración de cada paso completo
+    moveSteps(steps, direction, microseconds_per_step);
 }
 
 /*STEPPER FUNC*/
@@ -322,8 +327,8 @@ bool home_wrist_roll()
 
 void print_state_joints()
 {
-    printf("%.3f,%.3f,%.3f\n",
-           -elbow_joint.position, -wrist_left_joint.position, -wrist_right_joint.position);
+    printf("%.3f,%.3f,%.3f,%.3f\n",
+           -elbow_joint.position, -wrist_left_joint.position, -wrist_right_joint.position, stepper_pos);
 }
 
 void print_vel_joints()
