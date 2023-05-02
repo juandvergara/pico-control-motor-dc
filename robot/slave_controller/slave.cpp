@@ -328,7 +328,7 @@ bool home_wrist_roll()
 void print_state_joints()
 {
     printf("%.3f,%.3f,%.3f,%.3f\n",
-           -elbow_joint.position, -wrist_left_joint.position, -wrist_right_joint.position, stepper_pos);
+           elbow_joint.position, wrist_left_joint.position, wrist_right_joint.position, stepper_pos);
 }
 
 void print_vel_joints()
@@ -359,7 +359,7 @@ void command_callback(char *buffer)
             previous = current;
         }
 
-        elbow_joint.ref_position = round(-result[0] / SHOULDER_RELATION) * SHOULDER_RELATION;
+        elbow_joint.ref_position = round(result[0] / SHOULDER_RELATION) * SHOULDER_RELATION;
         wrist_left_joint.ref_position = round(result[1] / WRIST_RELATION) * WRIST_RELATION;
         wrist_right_joint.ref_position = round(result[2] / WRIST_RELATION) * WRIST_RELATION;
         break;

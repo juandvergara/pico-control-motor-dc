@@ -270,7 +270,7 @@ bool home_shoulder()
 void print_state_joints()
 {
     printf("%.3f,%.3f,%.3f\n",
-           slidebase_joint.position, -base_joint.position, shoulder_joint.position);
+           slidebase_joint.position, base_joint.position, shoulder_joint.position);
 }
 
 void print_vel_joints()
@@ -301,7 +301,7 @@ void command_callback(char *buffer)
             previous = current;
         }
         slidebase_joint.ref_position = round(result[0] / SLIDEBASE_RELATION) * SLIDEBASE_RELATION;
-        base_joint.ref_position = -round(result[1] / BASE_RELATION) * BASE_RELATION;
+        base_joint.ref_position = round(result[1] / BASE_RELATION) * BASE_RELATION;
         shoulder_joint.ref_position = round(result[2] / SHOULDER_RELATION) * SHOULDER_RELATION;
         break;
 
