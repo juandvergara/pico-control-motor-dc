@@ -14,8 +14,8 @@
 /*-------------- MOTOR PINS --------------*/
 #define M0_ENA_PIN 15
 #define M0_ENB_PIN 14
-#define M1_ENA_PIN 12
-#define M1_ENB_PIN 13
+#define M1_ENA_PIN 0    // SE CAMBIA PORQUE SE DAÑARON LOS PINES 12, 13, 14
+#define M1_ENB_PIN 1
 #define M2_ENA_PIN 11
 #define M2_ENB_PIN 10
 
@@ -33,7 +33,7 @@
 #define M2_HOME_SW 9
 
 #define M0_ENC_INVERTED false
-#define M1_ENC_INVERTED true
+#define M1_ENC_INVERTED false
 #define M2_ENC_INVERTED false
 
 #endif
