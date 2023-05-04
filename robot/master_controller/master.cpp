@@ -53,9 +53,9 @@ Encoder slidebase_encoder{M0_ENC_A_PIN, M0_ENC_B_PIN}, base_encoder{M1_ENC_A_PIN
 float kp1 = 0.2 / 10.0;
 float ki1 = 0.00008 / 10.0;
 float kd1 = 0.00007 / 10.0;
-float kp2 = 0.2 / 10.0;
-float ki2 = 0.00008 / 10.0;
-float kd2 = 0.00007 / 10.0;
+float kp2 = 0.2 / 2.0;
+float ki2 = 0.00008 / 2.0;
+float kd2 = 0.00007 / 2.0;
 
 float v1Prev = 0.0;
 float v2Prev = 0.0;
@@ -269,13 +269,13 @@ bool home_shoulder()
 
 void print_state_joints()
 {
-    printf("%.3f,%.3f,%.3f\n",
+    printf("%.3f,%.3f,%.3f",
            slidebase_joint.position, base_joint.position, shoulder_joint.position);
 }
 
 void print_vel_joints()
 {
-    printf("%.3f,%.3f,%.3f\n",
+    printf("%.3f,%.3f,%.3f",
            slidebase_joint.velocity, base_joint.velocity, shoulder_joint.velocity);
 }
 
@@ -473,6 +473,6 @@ int main()
         sleep_ms(250);
         gpio_put(PICO_DEFAULT_LED_PIN, 1);
         sleep_ms(250);
-        printf("Actual temp %.3f, %.3f\n", actual_temperture, target_temperture);
+        // printf("Actual temp %.3f, %.3f\n", actual_temperture, target_temperture);
     }
 }
