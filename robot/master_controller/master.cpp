@@ -50,9 +50,9 @@ Joint slidebase_joint, base_joint, shoulder_joint;
 DCMotor slidebase_motor{M0_ENA_PIN, M0_ENB_PIN}, base_motor{M1_ENA_PIN, M1_ENB_PIN}, shoulder_motor{M2_ENA_PIN, M2_ENB_PIN};
 Encoder slidebase_encoder{M0_ENC_A_PIN, M0_ENC_B_PIN}, base_encoder{M1_ENC_A_PIN, M1_ENC_B_PIN}, shoulder_encoder{M2_ENC_A_PIN, M2_ENC_B_PIN};
 
-float kp1 = 0.2;
-float ki1 = 0.00008;
-float kd1 = 0.00007;
+float kp1 = 0.2 / 10.0;
+float ki1 = 0.00008 / 10.0;
+float kd1 = 0.00007 / 10.0;
 float kp2 = 0.2;
 float ki2 = 0.00008;
 float kd2 = 0.00007;
