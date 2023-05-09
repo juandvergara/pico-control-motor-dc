@@ -393,7 +393,7 @@ void command_callback(char *buffer)
         stepper_deg = strtof(token, &previous);
         stepper_speed = strtof(previous + 1, &current);
 
-        printf("Degrees %.3f and speed %.3f \n", stepper_deg, stepper_speed);
+        // printf("Degrees %.3f and speed %.3f \n", stepper_deg, stepper_speed);
         break;
     case (SET_VEL_MODE):
         token = strtok(NULL, " ");
