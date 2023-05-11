@@ -53,9 +53,9 @@ Encoder slidebase_encoder{M0_ENC_A_PIN, M0_ENC_B_PIN}, base_encoder{M1_ENC_A_PIN
 float kp1 = 0.2 / 10.0;
 float ki1 = 0.00008 / 10.0;
 float kd1 = 0.00007 / 10.0;
-float kp2 = 0.2 / 2.0;
-float ki2 = 0.00008 / 2.0;
-float kd2 = 0.00007 / 2.0;
+float kp2 = 0.2;
+float ki2 = 0.00008;
+float kd2 = 0.00007;
 
 float v1Prev = 0.0;
 float v2Prev = 0.0;
