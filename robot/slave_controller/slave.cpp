@@ -20,8 +20,8 @@
 #define WRIST_RELATION 0.038643194504079006f    // 0.03435114503816794f     // 0.03864325091758399f 360.0f / (80.0f * 65.5f * 2.0f)
 
 #define HOME_ELBOW_ANGLE -5.0f
-#define HOME_WRIST_LEFT_ANGLE -20.0f
-#define HOME_WRIST_RIGHT_ANGLE -110.0f
+#define HOME_WRIST_LEFT_ANGLE -17.0f
+#define HOME_WRIST_RIGHT_ANGLE -107.0f
 
 #define DEG_S 8.0f
 
@@ -392,6 +392,8 @@ void command_callback(char *buffer)
 
         stepper_deg = strtof(token, &previous);
         stepper_speed = strtof(previous + 1, &current);
+
+        if (stepper_speed == 0.0) { stepper_speed = 10;}
 
         // printf("Degrees %.3f and speed %.3f \n", stepper_deg, stepper_speed);
         break;
