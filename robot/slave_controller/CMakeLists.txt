@@ -1,4 +1,4 @@
-add_executable(slave slave.cpp ../../src/pid_filter.cpp ../../src/dc_motor_v2.cpp ../../src/encoder.cpp)
+add_executable(slave slave_V3.cpp ../../src/pid_v3.cpp ../../src/dc_motor_v2.cpp ../../src/encoder.cpp)
 target_include_directories(slave PRIVATE ../../include)
 target_link_libraries(slave pico_stdlib hardware_pwm hardware_i2c pico_multicore)
 pico_enable_stdio_usb(slave 1)

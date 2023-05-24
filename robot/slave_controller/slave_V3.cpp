@@ -145,9 +145,9 @@ void set_vel_mode(float mode, bool print_msg)
     {
         if (print_msg)
             printf("Velocity control mode on \n");
-        PID_elbow.set_gains(0.0, 0.0, kd);
-        PID_wrist_left.set_gains(0.0, 0.0, kd);
-        PID_wrist_right.set_gains(0.0, 0.0, kd);
+        PID_elbow.set_gains(0.0, 0.0, kd, k_h, k_gamma);
+        PID_wrist_left.set_gains(0.0, 0.0, kd, k_h, k_gamma);
+        PID_wrist_right.set_gains(0.0, 0.0, kd, k_h, k_gamma);
     }
     else if (mode == 0.0)
     {
@@ -156,9 +156,9 @@ void set_vel_mode(float mode, bool print_msg)
         elbow_joint.ref_position = elbow_joint.position;
         wrist_left_joint.ref_position = wrist_left_joint.position;
         wrist_right_joint.ref_position = wrist_right_joint.position;
-        PID_elbow.set_gains(kp, ki, kd);
-        PID_wrist_left.set_gains(kp, ki, kd);
-        PID_wrist_right.set_gains(kp, ki, kd);
+        PID_elbow.set_gains(kp, ki, kd, k_h, k_gamma);
+        PID_wrist_left.set_gains(kp, ki, kd, k_h, k_gamma);
+        PID_wrist_right.set_gains(kp, ki, kd, k_h, k_gamma);
     }
     else
     {

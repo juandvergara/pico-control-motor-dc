@@ -34,9 +34,10 @@ struct Joint
     float ref_position = 0, ref_velocity = 0;
 };
 
-struct Nozzle{
+struct Nozzle
+{
     float target_temperture, actual_temperture, output_temperture, previous_temperature;
-}
+};
 
 Nozzle hotend;
 
@@ -166,9 +167,9 @@ void set_vel_mode(float mode, bool print_msg)
     {
         if (print_msg)
             printf("Velocity control mode on \n");
-        PID_slidebase.set_gains(0.0, 0.0, kd);
-        PID_base.set_gains(0.0, 0.0, kd);
-        PID_shoulder.set_gains(0.0, 0.0, kd);
+        PID_slidebase.set_gains(0.0, 0.0, kd, k_h, k_gamma);
+        PID_base.set_gains(0.0, 0.0, kd, k_h, k_gamma);
+        PID_shoulder.set_gains(0.0, 0.0, kd, k_h, k_gamma);
     }
     else if (mode == 0.0)
     {
@@ -177,9 +178,9 @@ void set_vel_mode(float mode, bool print_msg)
         slidebase_joint.ref_position = slidebase_joint.position;
         base_joint.ref_position = base_joint.position;
         shoulder_joint.ref_position = shoulder_joint.position;
-        PID_slidebase.set_gains(kp, ki, kd);
-        PID_base.set_gains(kp, ki, kd);
-        PID_shoulder.set_gains(kp, ki, kd);
+        PID_slidebase.set_gains(kp, ki, kd, k_h, k_gamma);
+        PID_base.set_gains(kp, ki, kd, k_h, k_gamma);
+        PID_shoulder.set_gains(kp, ki, kd, k_h, k_gamma);
     }
     else
     {
