@@ -39,8 +39,12 @@ float kp = 0.510;
 float ki = 1.015;
 float kd = 0.016;
 
+float kp_wrist = 0.255;
+float ki_wrist = 0.507;
+float kd_wrist = 0.008;
+
 float k_h = 0.01;
-float k_gamma = 0.8;
+float k_gamma = 1.2;
 
 float v1Prev = 0.0;
 float v2Prev = 0.0;
@@ -52,9 +56,9 @@ float pid_rate = float(sample_time_ms) / 1000.0f;
 PID_V3 PID_elbow(&elbow_joint.position, &elbow_joint.velocity, &elbow_joint.effort, &elbow_joint.ref_position, &elbow_joint.ref_velocity,
                  kp, ki, kd, sample_time_ms, k_h, k_gamma),
     PID_wrist_left(&wrist_left_joint.position, &wrist_left_joint.velocity, &wrist_left_joint.effort, &wrist_left_joint.ref_position, &wrist_left_joint.ref_velocity,
-                   kp, ki, kd, sample_time_ms, k_h, k_gamma),
+                   kp_wrist, ki_wrist, kd_wrist, sample_time_ms, k_h, k_gamma),
     PID_wrist_right(&wrist_right_joint.position, &wrist_right_joint.velocity, &wrist_right_joint.effort, &wrist_right_joint.ref_position, &wrist_right_joint.ref_velocity,
-                    kp, ki, kd, sample_time_ms, k_h, k_gamma);
+                    kp_wrist, ki_wrist, kd_wrist, sample_time_ms, k_h, k_gamma);
 
 /*STEPPER FUNC*/
 
