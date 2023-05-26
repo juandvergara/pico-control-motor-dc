@@ -61,7 +61,7 @@ float ki = 1.015;
 float kd = 0.016;
 
 float k_h = 0.01;
-float k_gamma = 0.8;
+float k_gamma = 1.2;
 
 float v1Prev = 0.0;
 float v2Prev = 0.0;
