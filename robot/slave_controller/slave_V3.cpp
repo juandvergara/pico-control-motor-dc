@@ -62,36 +62,11 @@ PID_V3 PID_elbow(&elbow_joint.position, &elbow_joint.velocity, &elbow_joint.effo
 
 /*STEPPER FUNC*/
 
-// const uint STEPS_PER_REVOLUTION = 200;
-// const uint MICROSTEPS = 32;
-// const uint MS_DELAY = 1;
-
 // Definición de constantes
-#define ANGLE_PER_STEP 1.8       // Ángulo que se desplaza el motor por cada paso
-#define STEPS_PER_REVOLUTION 200 // Número de pasos que da una revolución completa
-#define MICROSECONDS_PER_MICROSTEP 31.25
+#define ANGLE_PER_STEP 1.8f       // Ángulo que se desplaza el motor por cada paso
+#define MICRO_STEPS 32
 
 float stepper_deg, stepper_speed, stepper_pos;
-
-// void step(bool dir)
-// {
-//     gpio_put(DIR_PIN, dir);
-//     gpio_put(STEP_PIN, 1);
-//     sleep_us(1);
-//     gpio_put(STEP_PIN, 0);
-//     sleep_ms(MS_DELAY);
-// }
-
-// void rotateDegrees(float degrees, float speed)
-// {
-//     int steps = (int)round(degrees * (STEPS_PER_REVOLUTION / 360.0) * MICROSTEPS);
-//     float delay = 1.0 / speed;
-//     for (int i = 0; i < steps; i++)
-//     {
-//         step(0);
-//         sleep_ms(delay * 1000);
-//     }
-// }
 
 void moveSteps(int steps, bool direction, int speed)
 {
@@ -104,15 +79,15 @@ void moveSteps(int steps, bool direction, int speed)
         sleep_us(delay_us);
         gpio_put(STEP_PIN, 0);
         sleep_us(delay_us);
-        stepper_pos = i * negative * (ANGLE_PER_STEP / 32);
+        stepper_pos = i * negative * (ANGLE_PER_STEP / MICRO_STEPS);
     }
 }
 
 void moveDegrees(float degrees, int speed)
 {
-    float steps = degrees / ANGLE_PER_STEP * 32;
+    float steps = degrees / ANGLE_PER_STEP * MICRO_STEPS;
     bool direction = (degrees < 0);
-    int microseconds_per_step = 1000000 / (speed * 32); // Cálculo de la duración de cada paso completo
+    int microseconds_per_step = 1000000 / (speed * MICRO_STEPS); // Cálculo de la duración de cada paso completo
     moveSteps(steps, direction, microseconds_per_step);
 }
 
@@ -183,7 +158,7 @@ bool home_elbow()
 
         bool switch_pressed = gpio_get(M3_HOME_SW);
 
-        printf("Fixing elbow home \n");
+        // printf("Fixing elbow home \n");
 
         thetaf = gpio_get(M3_HOME_SW) ? 100 : -20;
 
@@ -228,7 +203,7 @@ bool home_wrist_pitch()
 
         bool switch_pressed = gpio_get(M4_HOME_SW);
 
-        printf("Fixing wrist pitch home \n");
+        // printf("Fixing wrist pitch home \n");
 
         left_thetaf = gpio_get(M4_HOME_SW) ? 200 : -60;
         right_thetaf = gpio_get(M4_HOME_SW) ? -200 : 60;
@@ -285,7 +260,7 @@ bool home_wrist_roll()
         float l_a, l_b, l_c, l_d;
         float r_a, r_b, r_c, r_d;
 
-        printf("Fixing wrist roll home \n");
+        // printf("Fixing wrist roll home \n");
 
         left_thetaf = gpio_get(M5_HOME_SW) ? -200 : 30;
         right_thetaf = gpio_get(M5_HOME_SW) ? -200 : 30;
