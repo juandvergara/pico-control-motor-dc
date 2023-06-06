@@ -199,7 +199,7 @@ bool home_body()
         float theta0 = base_joint.position, dot_theta0 = 0, thetaf, dot_thetaf = 0, t_final;
         float a, b, c, d;
 
-        printf("Fixing body home \n");
+        // printf("Fixing body home \n");
 
         thetaf = gpio_get(M1_HOME_SW) ? 90 : -20;
 
@@ -241,7 +241,7 @@ bool home_shoulder()
         float theta0 = shoulder_joint.position, dot_theta0 = 0, thetaf, dot_thetaf = 0, t_final;
         float a, b, c, d;
 
-        printf("Fixing shoulder home \n");
+        // printf("Fixing shoulder home \n");
 
         thetaf = gpio_get(M2_HOME_SW) ? 180 : -10;
 
@@ -330,6 +330,9 @@ void command_callback(char *buffer)
         break;
     case (READ_ENCODER):
         print_state_joints();
+        break;
+    case(TEMP_STATUS):
+        printf("%.3f\n", hotend.actual_temperture);
         break;
     case (READ_VEL_ENCODER):
         print_vel_joints();
