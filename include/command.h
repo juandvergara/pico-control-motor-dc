@@ -9,5 +9,6 @@
 #define CLEAR_JOINTS 'c'
 #define SET_HOTEND_TEMPERATURE 't'
 #define SET_EXTRUDER 'n'
+#define TEMP_STATUS 'i'
 
 #define PRINT_STATE 'e'
