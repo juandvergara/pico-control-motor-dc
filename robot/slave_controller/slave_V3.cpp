@@ -79,15 +79,15 @@ void moveSteps(int steps, bool direction, int speed)
         sleep_us(delay_us);
         gpio_put(STEP_PIN, 0);
         sleep_us(delay_us);
-        stepper_pos = i * negative * (ANGLE_PER_STEP / MICRO_STEPS);
+        stepper_pos = i * negative * (ANGLE_PER_STEP / 32);
     }
 }
 
 void moveDegrees(float degrees, int speed)
 {
-    float steps = degrees / ANGLE_PER_STEP * MICRO_STEPS;
+    float steps = degrees / ANGLE_PER_STEP * 32;
     bool direction = (degrees < 0);
-    int microseconds_per_step = 1000000 / (speed * MICRO_STEPS); // Cálculo de la duración de cada paso completo
+    int microseconds_per_step = 1000000 / (speed * 32); // Cálculo de la duración de cada paso completo
     moveSteps(steps, direction, microseconds_per_step);
 }
 
