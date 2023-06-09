@@ -37,11 +37,11 @@ Encoder elbow_encoder(M3_ENC_A_PIN, M3_ENC_B_PIN), wrist_left_encoder(M4_ENC_A_P
 
 float kp = 0.510;
 float ki = 1.015;
-float kd = 0.016;
+float kd = 0.016/10;
 
 float kp_wrist = 0.255;
 float ki_wrist = 0.507;
-float kd_wrist = 0.008;
+float kd_wrist = 0.008/10;
 
 float k_h = 0.01;
 float k_gamma = 1.2;
