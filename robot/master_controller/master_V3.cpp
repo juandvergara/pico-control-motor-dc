@@ -58,7 +58,7 @@ Encoder slidebase_encoder{M0_ENC_A_PIN, M0_ENC_B_PIN}, base_encoder{M1_ENC_A_PIN
 
 float kp = 0.510;
 float ki = 1.015;
-float kd = 0.016;
+float kd = 0.016/10;
 
 float k_h = 0.01;
 float k_gamma = 1.2;
@@ -219,8 +219,10 @@ bool home_body()
             base_joint.ref_velocity = b + 2 * c * time_process + 3 * d * pow(time_process, 2);
             if (!gpio_get(M1_HOME_SW))
             {
-                base_encoder.encoder_pos = 0;
-                base_joint.ref_position = 0;
+                base_encoder.encoder_pos = round(HOME_BASE_ANGLE / BASE_RELATION);
+                base_joint.ref_position = round(HOME_BASE_ANGLE / BASE_RELATION) * BASE_RELATION;
+                // base_encoder.encoder_pos = 0;
+                // base_joint.ref_position = 0;
                 base_joint.ref_velocity = 0;
                 base_home = true;
                 break;
@@ -261,8 +263,8 @@ bool home_shoulder()
             shoulder_joint.ref_velocity = b + 2 * c * time_process + 3 * d * pow(time_process, 2);
             if (!gpio_get(M2_HOME_SW))
             {
-                shoulder_encoder.encoder_pos = 0;
-                shoulder_joint.ref_position = 0;
+                shoulder_encoder.encoder_pos = round(HOME_SHOULDER_ANGLE / SHOULDER_RELATION);
+                shoulder_joint.ref_position = round(HOME_SHOULDER_ANGLE / SHOULDER_RELATION) * SHOULDER_RELATION;
                 shoulder_joint.ref_velocity = 0;
                 shoulder_home = true;
                 break;
@@ -354,10 +356,10 @@ void command_callback(char *buffer)
         home_body();
         slidebase_encoder.encoder_pos = 0;
         slidebase_joint.ref_position = 0;
-        base_encoder.encoder_pos = round(HOME_BASE_ANGLE / BASE_RELATION);
-        base_joint.ref_position = round(HOME_BASE_ANGLE / BASE_RELATION) * BASE_RELATION;
-        shoulder_encoder.encoder_pos = round(HOME_SHOULDER_ANGLE / SHOULDER_RELATION);
-        shoulder_joint.ref_position = round(HOME_SHOULDER_ANGLE / SHOULDER_RELATION) * SHOULDER_RELATION;
+        // base_encoder.encoder_pos = round(HOME_BASE_ANGLE / BASE_RELATION);
+        // base_joint.ref_position = round(HOME_BASE_ANGLE / BASE_RELATION) * BASE_RELATION;
+        // shoulder_encoder.encoder_pos = round(HOME_SHOULDER_ANGLE / SHOULDER_RELATION);
+        // shoulder_joint.ref_position = round(HOME_SHOULDER_ANGLE / SHOULDER_RELATION) * SHOULDER_RELATION;
         break;
     case (CLEAR_JOINTS):
         printf("Encoder variables cleaned! \n");
