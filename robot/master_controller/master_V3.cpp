@@ -1,10 +1,12 @@
-#include <cmath>
 #include <stdio.h>
 #include <string.h>
+
+#include <cmath>
+
 #include "pico/stdlib.h"
 #include "pico/multicore.h"
-#include "hardware/i2c.h"
 #include "hardware/adc.h"
+
 #include "dc_motor_v2.h"
 #include "encoder.h"
 #include "pid_v3.h"
@@ -63,9 +65,9 @@ float kd = 0.016/10;
 float k_h = 0.01;
 float k_gamma = 1.2;
 
-float v1Prev = 0.0;
-float v2Prev = 0.0;
-float v3Prev = 0.0;
+float v_slidebase_prev = 0.0;
+float v_base_prev = 0.0;
+float v_shoulder_prev = 0.0;
 
 uint32_t sample_time_ms = 5;
 float pid_rate = float(sample_time_ms) / 1000.0f;
@@ -80,7 +82,7 @@ PID_V3 PID_slidebase(&slidebase_joint.position, &slidebase_joint.velocity, &slid
 uint32_t millis() { return to_ms_since_boot(get_absolute_time()); }
 
 /*TEMPERTURE CONTROL*/
-void temp_init()
+void TempInit()
 {
     _slice_num = pwm_gpio_to_slice_num(CONTROL_PIN);
     _channel = pwm_gpio_to_channel(CONTROL_PIN);
@@ -97,7 +99,7 @@ void temp_init()
     PID_hotend.set_output_limits(0.0, 1.0);
 }
 
-void temp_write(float duty_cycle)
+void TempWrite(float duty_cycle)
 {
     if (duty_cycle > 1.0f)
         duty_cycle = 1.0f;
@@ -107,7 +109,7 @@ void temp_write(float duty_cycle)
     pwm_set_enabled(_slice_num, true);
 }
 
-void temp_calculate()
+void TempCalculate()
 {
     float temp = -20;
 
@@ -128,22 +130,22 @@ void temp_calculate()
     hotend.previous_temperature = temp;
 
     PID_hotend.compute();
-    temp_write(hotend.output_temperture);
+    TempWrite(hotend.output_temperture);
 }
 
-bool temp_Callback(repeating_timer_t *rt)
+bool TempCallback(repeating_timer_t *rt)
 {
-    temp_calculate();
+    TempCalculate();
     return true;
 }
 
-void set_hotend_temp(float target)
+void SetHotendTemp(float target)
 {
     hotend.target_temperture = target;
 }
 
 /*TEMPERTURE CONTROL*/
-void initRobot()
+void InitRobot()
 {
     slidebase_motor.write(0.0);
     base_motor.write(0.0);
@@ -161,7 +163,7 @@ void initRobot()
     gpio_pull_up(M2_HOME_SW);
 }
 
-void set_vel_mode(float mode, bool print_msg)
+void SetVelMode(float mode, bool print_msg)
 {
     if (mode == 1.0)
     {
@@ -189,7 +191,7 @@ void set_vel_mode(float mode, bool print_msg)
     }
 }
 
-bool home_body()
+bool HomeBody()
 {
     bool base_home = false;
     float initial_time, current_time;
@@ -221,8 +223,6 @@ bool home_body()
             {
                 base_encoder.encoder_pos = round(HOME_BASE_ANGLE / BASE_RELATION);
                 base_joint.ref_position = round(HOME_BASE_ANGLE / BASE_RELATION) * BASE_RELATION;
-                // base_encoder.encoder_pos = 0;
-                // base_joint.ref_position = 0;
                 base_joint.ref_velocity = 0;
                 base_home = true;
                 break;
@@ -233,7 +233,7 @@ bool home_body()
     return base_home;
 }
 
-bool home_shoulder()
+bool HomeShoulder()
 {
     bool shoulder_home = false;
     float initial_time, current_time;
@@ -275,19 +275,19 @@ bool home_shoulder()
     return shoulder_home;
 }
 
-void print_state_joints()
+void PrintStateJoints()
 {
     printf("%.3f,%.3f,%.3f\n",
            slidebase_joint.position, base_joint.position, shoulder_joint.position);
 }
 
-void print_vel_joints()
+void PrintVelJoints()
 {
     printf("%.3f,%.3f,%.3f",
            slidebase_joint.velocity, base_joint.velocity, shoulder_joint.velocity);
 }
 
-void command_callback(char *buffer)
+void CommandCallback(char *buffer)
 {
     char *current;
     char *previous;
@@ -331,25 +331,25 @@ void command_callback(char *buffer)
         shoulder_joint.ref_velocity = result[2];
         break;
     case (READ_ENCODER):
-        print_state_joints();
+        PrintStateJoints();
         break;
     case(TEMP_STATUS):
         printf("%.3f\n", hotend.actual_temperture);
         break;
     case (READ_VEL_ENCODER):
-        print_vel_joints();
+        PrintVelJoints();
         break;
     case (SET_HOTEND_TEMPERATURE):
         token = strtok(NULL, " ");
         float target;
         target = strtof(token, &previous);
-        set_hotend_temp(target);
+        SetHotendTemp(target);
         break;
     case (SET_VEL_MODE):
         token = strtok(NULL, " ");
         float mode;
         mode = strtof(token, &previous);
-        set_vel_mode(mode, true);
+        SetVelMode(mode, true);
         break;
     case (CHANGE_KH_GAIN):
         token = strtok(NULL, " ");
@@ -359,14 +359,10 @@ void command_callback(char *buffer)
         PID_shoulder.set_gains(kp, ki, kd, k_h, k_gamma);
         break;
     case (HOME):
-        home_shoulder();
-        home_body();
+        HomeShoulder();
+        HomeBody();
         slidebase_encoder.encoder_pos = 0;
         slidebase_joint.ref_position = 0;
-        // base_encoder.encoder_pos = round(HOME_BASE_ANGLE / BASE_RELATION);
-        // base_joint.ref_position = round(HOME_BASE_ANGLE / BASE_RELATION) * BASE_RELATION;
-        // shoulder_encoder.encoder_pos = round(HOME_SHOULDER_ANGLE / SHOULDER_RELATION);
-        // shoulder_joint.ref_position = round(HOME_SHOULDER_ANGLE / SHOULDER_RELATION) * SHOULDER_RELATION;
         break;
     case (CLEAR_JOINTS):
         printf("Encoder variables cleaned! \n");
@@ -380,7 +376,7 @@ void command_callback(char *buffer)
     }
 }
 
-void process_user_input(int input_std)
+void ProcessUserInput(int input_std)
 {
     int input_char_index;
     char in_buffer[50];
@@ -392,7 +388,7 @@ void process_user_input(int input_std)
         {
             in_buffer[input_char_index] = 0;
             input_char_index = 0;
-            command_callback(in_buffer);
+            CommandCallback(in_buffer);
             break;
         }
         input_std = getchar_timeout_us(0);
@@ -400,7 +396,7 @@ void process_user_input(int input_std)
     // gpio_put(PICO_DEFAULT_LED_PIN, 0);
 }
 
-void updatePid(int32_t joint1_encoder_ticks, int32_t joint2_encoder_ticks, int32_t joint3_encoder_ticks)
+void UpdatePID(int32_t joint1_encoder_ticks, int32_t joint2_encoder_ticks, int32_t joint3_encoder_ticks)
 {
     float position_slidebase = float(joint1_encoder_ticks) * SLIDEBASE_RELATION;
     float position_base = float(joint2_encoder_ticks) * BASE_RELATION;
@@ -414,13 +410,13 @@ void updatePid(int32_t joint1_encoder_ticks, int32_t joint2_encoder_ticks, int32
     base_joint.position = position_base;
     shoulder_joint.position = position_shoulder;
 
-    slidebase_joint.velocity = 0.854 * slidebase_joint.velocity + 0.0728 * velocity_slidebase + 0.0728 * v1Prev;
-    base_joint.velocity = 0.854 * base_joint.velocity + 0.0728 * velocity_base + 0.0728 * v2Prev;
-    shoulder_joint.velocity = 0.854 * shoulder_joint.velocity + 0.0728 * velocity_shoulder + 0.0728 * v3Prev;
+    slidebase_joint.velocity = 0.854 * slidebase_joint.velocity + 0.0728 * velocity_slidebase + 0.0728 * v_slidebase_prev;
+    base_joint.velocity = 0.854 * base_joint.velocity + 0.0728 * velocity_base + 0.0728 * v_base_prev;
+    shoulder_joint.velocity = 0.854 * shoulder_joint.velocity + 0.0728 * velocity_shoulder + 0.0728 * v_shoulder_prev;
 
-    v1Prev = velocity_slidebase;
-    v2Prev = velocity_base;
-    v3Prev = velocity_shoulder;
+    v_slidebase_prev = velocity_slidebase;
+    v_base_prev = velocity_base;
+    v_shoulder_prev = velocity_shoulder;
 
     PID_slidebase.compute();
     PID_base.compute();
@@ -431,27 +427,27 @@ void updatePid(int32_t joint1_encoder_ticks, int32_t joint2_encoder_ticks, int32
     shoulder_motor.write(M2_ENC_INVERTED ? -shoulder_joint.effort : shoulder_joint.effort);
 }
 
-bool timerCallback(repeating_timer_t *rt)
+bool TimerCallback(repeating_timer_t *rt)
 {
-    updatePid(int32_t(slidebase_encoder.encoder_pos), int32_t(base_encoder.encoder_pos), int32_t(shoulder_encoder.encoder_pos));
+    UpdatePID(int32_t(slidebase_encoder.encoder_pos), int32_t(base_encoder.encoder_pos), int32_t(shoulder_encoder.encoder_pos));
     return true;
 }
 
-void encoders_callback(uint gpio, uint32_t events)
+void EncodersCallback(uint gpio, uint32_t events)
 {
     slidebase_encoder.readPosition();
     base_encoder.readPosition();
     shoulder_encoder.readPosition();
 }
 
-void core1_comm()
+void Core1Comm()
 {
     int input_char;
 
     while (true)
     {
         input_char = getchar_timeout_us(0);
-        process_user_input(input_char);
+        ProcessUserInput(input_char);
     }
 }
 
@@ -462,27 +458,27 @@ int main()
 
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
-    initRobot();
-    temp_init();
+    InitRobot();
+    TempInit();
 
-    multicore_launch_core1(core1_comm);
+    multicore_launch_core1(Core1Comm);
     sleep_ms(500);
 
-    gpio_set_irq_enabled_with_callback(M0_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &encoders_callback);
-    gpio_set_irq_enabled_with_callback(M1_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &encoders_callback);
-    gpio_set_irq_enabled_with_callback(M2_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &encoders_callback);
+    gpio_set_irq_enabled_with_callback(M0_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &EncodersCallback);
+    gpio_set_irq_enabled_with_callback(M1_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &EncodersCallback);
+    gpio_set_irq_enabled_with_callback(M2_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &EncodersCallback);
 
-    repeating_timer_t timer;
-    if (!add_repeating_timer_ms(-sample_time_ms, timerCallback, NULL, &timer))
+    repeating_timer_t timer_pid;
+    if (!add_repeating_timer_ms(-sample_time_ms, TimerCallback, NULL, &timer_pid))
     {
-        printf("Failure by not set timer!! \n");
+        printf("Failure by not set timer pid!! \n");
     }
 
     sleep_ms(200);
     repeating_timer_t timer_temp;
-    if (!add_repeating_timer_ms(-temp_sample_time_ms, temp_Callback, NULL, &timer_temp))
+    if (!add_repeating_timer_ms(-temp_sample_time_ms, TempCallback, NULL, &timer_temp))
     {
-        printf("Failure by not set timer!! \n");
+        printf("Failure by not set timer temperature pid!! \n");
     }
 
     while (true)

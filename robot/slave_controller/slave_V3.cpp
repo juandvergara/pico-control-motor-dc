@@ -1,9 +1,11 @@
-#include <cmath>
 #include <stdio.h>
 #include <string.h>
+
+#include <cmath>
+
 #include "pico/stdlib.h"
 #include "pico/multicore.h"
-#include "hardware/i2c.h"
+
 #include "dc_motor_v2.h"
 #include "encoder.h"
 #include "pid_v3.h"
@@ -46,9 +48,9 @@ float kd_wrist = 0.008 / 10;
 float k_h = 0.01;
 float k_gamma = 1.2;
 
-float v1Prev = 0.0;
-float v2Prev = 0.0;
-float v3Prev = 0.0;
+float v_elbow_prev = 0.0;
+float v_wrist_left_prev = 0.0;
+float v_wrist_right_prev = 0.0;
 
 uint32_t sample_time_ms = 5;
 float pid_rate = float(sample_time_ms) / 1000.0f;
@@ -71,7 +73,7 @@ const float degreesPerStep = 360.0 / (STEPS_PER_REV * MICRO_STEPS);
 
 float stepper_target, stepper_speed, stepper_pos;
 
-void rotateStepper(float degrees, int speed)
+void RotateStepper(float degrees, int speed)
 {
     int steps = degrees / degreesPerStep;
     int direction = (degrees > 0) ? 0 : 1;
@@ -92,7 +94,7 @@ void rotateStepper(float degrees, int speed)
 
 uint32_t millis() { return to_ms_since_boot(get_absolute_time()); }
 
-void initRobot()
+void InitRobot()
 {
     elbow_motor.write(0.0);
     wrist_left_motor.write(0.0);
@@ -115,7 +117,7 @@ void initRobot()
     gpio_set_dir(DIR_PIN, GPIO_OUT);
 }
 
-void set_vel_mode(float mode, bool print_msg)
+void SetVelMode(float mode, bool print_msg)
 {
     if (mode == 1.0)
     {
@@ -143,7 +145,7 @@ void set_vel_mode(float mode, bool print_msg)
     }
 }
 
-bool home_elbow()
+bool HomeElbow()
 {
     bool elbow_home = false;
     float initial_time, current_time;
@@ -182,15 +184,15 @@ bool home_elbow()
             current_time = millis() / 1e3;
         }
     }
-    return home_elbow;
+    return HomeElbow;
 }
 
-bool home_wrist_pitch()
+bool HomeWristPitch()
 {
-    bool home_wrist_pitch = false;
+    bool HomeWristPitch = false;
     float initial_time, current_time;
 
-    while (!home_wrist_pitch)
+    while (!HomeWristPitch)
     {
         float left_theta0 = wrist_left_joint.position, left_dot_theta0 = 0, left_thetaf, left_dot_thetaf = 0, left_t_final;
         float right_theta0 = wrist_right_joint.position, right_dot_theta0 = 0, right_thetaf, right_dot_thetaf = 0, right_t_final;
@@ -234,22 +236,22 @@ bool home_wrist_pitch()
             {
                 wrist_left_encoder.encoder_pos = wrist_left_joint.ref_position = wrist_left_joint.ref_velocity = 0;
                 wrist_right_encoder.encoder_pos = wrist_right_joint.ref_position = wrist_right_joint.ref_velocity = 0;
-                home_wrist_pitch = true;
+                HomeWristPitch = true;
                 break;
             }
             current_time = millis() / 1e3;
         }
         sleep_ms(100);
     }
-    return home_wrist_pitch;
+    return HomeWristPitch;
 }
 
-bool home_wrist_roll()
+bool HomeWristRoll()
 {
-    bool home_wrist_roll = false;
+    bool HomeWristRoll = false;
     float initial_time, current_time;
 
-    while (!home_wrist_roll)
+    while (!HomeWristRoll)
     {
         float left_theta0 = wrist_left_joint.position, left_dot_theta0 = 0, left_thetaf, left_dot_thetaf = 0, left_t_final;
         float right_theta0 = wrist_right_joint.position, right_dot_theta0 = 0, right_thetaf, right_dot_thetaf = 0, right_t_final;
@@ -291,29 +293,29 @@ bool home_wrist_roll()
             {
                 wrist_left_encoder.encoder_pos = wrist_left_joint.ref_position = wrist_left_joint.ref_velocity = 0;
                 wrist_right_encoder.encoder_pos = wrist_right_joint.ref_position = wrist_right_joint.ref_velocity = 0;
-                home_wrist_roll = true;
+                HomeWristRoll = true;
                 break;
             }
             current_time = millis() / 1e3;
         }
         sleep_ms(100);
     }
-    return home_wrist_roll;
+    return HomeWristRoll;
 }
 
-void print_state_joints()
+void PrintStateJoints()
 {
     printf("%.3f,%.3f,%.3f,%.3f\n",
            elbow_joint.position, wrist_left_joint.position, wrist_right_joint.position, stepper_pos);
 }
 
-void print_vel_joints()
+void PrintVelJoints()
 {
     printf("%.3f,%.3f,%.3f\n",
            elbow_joint.velocity, wrist_left_joint.velocity, wrist_right_joint.velocity);
 }
 
-void command_callback(char *buffer)
+void CommandCallback(char *buffer)
 {
     char *current;
     char *previous;
@@ -358,10 +360,10 @@ void command_callback(char *buffer)
         wrist_right_joint.ref_velocity = result[2];
         break;
     case (READ_ENCODER):
-        print_state_joints();
+        PrintStateJoints();
         break;
     case (READ_VEL_ENCODER):
-        print_vel_joints();
+        PrintVelJoints();
         break;
     case (SET_EXTRUDER):
         token = strtok(NULL, " ");
@@ -387,13 +389,13 @@ void command_callback(char *buffer)
         token = strtok(NULL, " ");
         float mode;
         mode = strtof(token, &previous);
-        set_vel_mode(mode, true);
+        SetVelMode(mode, true);
         break;
     case (HOME):
-        home_elbow();
-        home_wrist_roll();
+        HomeElbow();
+        HomeWristRoll();
         sleep_ms(200);
-        home_wrist_pitch();
+        HomeWristPitch();
         elbow_encoder.encoder_pos = round(HOME_ELBOW_ANGLE / ELBOW_RELATION);
         elbow_joint.ref_position = round(HOME_ELBOW_ANGLE / ELBOW_RELATION) * ELBOW_RELATION;
         wrist_left_encoder.encoder_pos = round(HOME_WRIST_LEFT_ANGLE / WRIST_RELATION);
@@ -413,7 +415,7 @@ void command_callback(char *buffer)
     }
 }
 
-void process_user_input(int input_std)
+void ProcessUserInput(int input_std)
 {
     int input_char_index;
     char in_buffer[50];
@@ -425,7 +427,7 @@ void process_user_input(int input_std)
         {
             in_buffer[input_char_index] = 0;
             input_char_index = 0;
-            command_callback(in_buffer);
+            CommandCallback(in_buffer);
             break;
         }
         input_std = getchar_timeout_us(0);
@@ -433,7 +435,7 @@ void process_user_input(int input_std)
     gpio_put(PICO_DEFAULT_LED_PIN, 0);
 }
 
-void updatePid(int32_t joint1_encoder_ticks, int32_t joint2_encoder_ticks, int32_t joint3_encoder_ticks)
+void UpdatePID(int32_t joint1_encoder_ticks, int32_t joint2_encoder_ticks, int32_t joint3_encoder_ticks)
 {
     float position_elbow = float(joint1_encoder_ticks) * ELBOW_RELATION;
     float position_wrist_left = float(joint2_encoder_ticks) * WRIST_RELATION;
@@ -447,13 +449,13 @@ void updatePid(int32_t joint1_encoder_ticks, int32_t joint2_encoder_ticks, int32
     wrist_left_joint.position = position_wrist_left;
     wrist_right_joint.position = position_wrist_right;
 
-    elbow_joint.velocity = 0.854 * elbow_joint.velocity + 0.0728 * velocity_elbow + 0.0728 * v1Prev;
-    wrist_left_joint.velocity = 0.854 * wrist_left_joint.velocity + 0.0728 * velocity_wrist_left + 0.0728 * v2Prev;
-    wrist_right_joint.velocity = 0.854 * wrist_right_joint.velocity + 0.0728 * velocity_wrist_right + 0.0728 * v3Prev;
+    elbow_joint.velocity = 0.854 * elbow_joint.velocity + 0.0728 * velocity_elbow + 0.0728 * v_elbow_prev;
+    wrist_left_joint.velocity = 0.854 * wrist_left_joint.velocity + 0.0728 * velocity_wrist_left + 0.0728 * v_wrist_left_prev;
+    wrist_right_joint.velocity = 0.854 * wrist_right_joint.velocity + 0.0728 * velocity_wrist_right + 0.0728 * v_wrist_right_prev;
 
-    v1Prev = velocity_elbow;
-    v2Prev = velocity_wrist_left;
-    v3Prev = velocity_wrist_right;
+    v_elbow_prev = velocity_elbow;
+    v_wrist_left_prev = velocity_wrist_left;
+    v_wrist_right_prev = velocity_wrist_right;
 
     PID_elbow.compute();
     PID_wrist_left.compute();
@@ -464,27 +466,27 @@ void updatePid(int32_t joint1_encoder_ticks, int32_t joint2_encoder_ticks, int32
     wrist_right_motor.write(M5_ENC_INVERTED ? -wrist_right_joint.effort : wrist_right_joint.effort);
 }
 
-bool timerCallback(repeating_timer_t *rt)
+bool TimerCallback(repeating_timer_t *rt)
 {
-    updatePid(int32_t(elbow_encoder.encoder_pos), int32_t(wrist_left_encoder.encoder_pos), int32_t(wrist_right_encoder.encoder_pos));
+    UpdatePID(int32_t(elbow_encoder.encoder_pos), int32_t(wrist_left_encoder.encoder_pos), int32_t(wrist_right_encoder.encoder_pos));
     return true;
 }
 
-void encoders_callback(uint gpio, uint32_t events)
+void EncodersCallback(uint gpio, uint32_t events)
 {
     elbow_encoder.readPosition();
     wrist_left_encoder.readPosition();
     wrist_right_encoder.readPosition();
 }
 
-void core1_comm()
+void Core1Comm()
 {
     int input_char;
 
     while (true)
     {
         input_char = getchar_timeout_us(0);
-        process_user_input(input_char);
+        ProcessUserInput(input_char);
     }
 }
 
@@ -495,24 +497,24 @@ int main()
 
     gpio_init(PICO_DEFAULT_LED_PIN);
     gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
-    initRobot();
+    InitRobot();
 
-    multicore_launch_core1(core1_comm);
+    multicore_launch_core1(Core1Comm);
     sleep_ms(500);
 
-    gpio_set_irq_enabled_with_callback(M3_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &encoders_callback);
-    gpio_set_irq_enabled_with_callback(M4_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &encoders_callback);
-    gpio_set_irq_enabled_with_callback(M5_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &encoders_callback);
+    gpio_set_irq_enabled_with_callback(M3_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &EncodersCallback);
+    gpio_set_irq_enabled_with_callback(M4_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &EncodersCallback);
+    gpio_set_irq_enabled_with_callback(M5_ENC_A_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &EncodersCallback);
 
     repeating_timer_t timer;
-    if (!add_repeating_timer_ms(-sample_time_ms, timerCallback, NULL, &timer))
+    if (!add_repeating_timer_ms(-sample_time_ms, TimerCallback, NULL, &timer))
     {
         printf("Failure by not set timer!! \n");
     }
 
     while (true)
     {
-        rotateStepper(stepper_target, stepper_speed);
+        RotateStepper(stepper_target, stepper_speed);
         stepper_target = 0;
 
         gpio_put(PICO_DEFAULT_LED_PIN, 0);
