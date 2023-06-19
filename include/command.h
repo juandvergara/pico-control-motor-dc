@@ -10,5 +10,6 @@
 #define SET_HOTEND_TEMPERATURE 't'
 #define SET_EXTRUDER 'n'
 #define TEMP_STATUS 'i'
+#define CHANGE_KH_GAIN 'k'
 
 #define PRINT_STATE 'e'
