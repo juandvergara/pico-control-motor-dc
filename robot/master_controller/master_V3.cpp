@@ -351,6 +351,13 @@ void command_callback(char *buffer)
         mode = strtof(token, &previous);
         set_vel_mode(mode, true);
         break;
+    case (CHANGE_KH_GAIN):
+        token = strtok(NULL, " ");
+        k_gamma = strtof(token, &previous);
+
+        PID_base.set_gains(kp, ki, kd, k_h, k_gamma);
+        PID_shoulder.set_gains(kp, ki, kd, k_h, k_gamma);
+        break;
     case (HOME):
         home_shoulder();
         home_body();
