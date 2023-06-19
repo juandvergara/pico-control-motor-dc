@@ -27,7 +27,7 @@ void PID_V3::set_gains(float kp, float ki, float kd, float k_h, float k_gamma)
         return;
 
     float sample_time_s = (float)_sample_time_ms / 1000.0f;
-    printf("pid set p: %f, i: %f, d: %f. Rate: %f [s] \n", kp, ki, kd, sample_time_s);
+    // printf("pid set p: %f, i: %f, d: %f. Rate: %f [s] \n", kp, ki, kd, sample_time_s);
 
     _kp = kp;
     _ki = ki * sample_time_s; // Cause discrete PI works whith this
