@@ -37,11 +37,11 @@ Encoder elbow_encoder(M3_ENC_A_PIN, M3_ENC_B_PIN), wrist_left_encoder(M4_ENC_A_P
 
 float kp = 0.510;
 float ki = 1.015;
-float kd = 0.016/10;
+float kd = 0.016 / 10;
 
 float kp_wrist = 0.255;
 float ki_wrist = 0.507;
-float kd_wrist = 0.008/10;
+float kd_wrist = 0.008 / 10;
 
 float k_h = 0.01;
 float k_gamma = 1.2;
@@ -63,32 +63,29 @@ PID_V3 PID_elbow(&elbow_joint.position, &elbow_joint.velocity, &elbow_joint.effo
 /*STEPPER FUNC*/
 
 // Definición de constantes
-#define ANGLE_PER_STEP 1.8f       // Ángulo que se desplaza el motor por cada paso
+#define ANGLE_PER_STEP 1.8f // Ángulo que se desplaza el motor por cada paso
 #define MICRO_STEPS 32
+#define STEPS_PER_REV 200
 
-float stepper_deg, stepper_speed, stepper_pos;
+const float degreesPerStep = 360.0 / (STEPS_PER_REV * MICRO_STEPS);
 
-void moveSteps(int steps, bool direction, int speed)
+float stepper_target, stepper_speed, stepper_pos;
+
+void rotateStepper(float degrees, int speed)
 {
+    int steps = degrees / degreesPerStep;
+    int direction = (degrees > 0) ? 0 : 1;
+    unsigned long stepDelay = 1000000 / (STEPS_PER_REV * speed);
     gpio_put(DIR_PIN, direction);
-    uint32_t delay_us = speed / 2; // Cálculo del retardo en microsegundos (la mitad del tiempo que está activo el pulso)
-    float negative = direction ? -1.0 : 1.0;
+
     for (int i = 0; i < abs(steps); i++)
     {
         gpio_put(STEP_PIN, 1);
-        sleep_us(delay_us);
+        sleep_us(stepDelay / 2.0);
         gpio_put(STEP_PIN, 0);
-        sleep_us(delay_us);
-        stepper_pos = i * negative * (ANGLE_PER_STEP / 32);
+        sleep_us(stepDelay / 2.0);
+        stepper_pos = i * degreesPerStep;
     }
-}
-
-void moveDegrees(float degrees, int speed)
-{
-    float steps = degrees / ANGLE_PER_STEP * 32;
-    bool direction = (degrees < 0);
-    int microseconds_per_step = 1000000 / (speed * 32); // Cálculo de la duración de cada paso completo
-    moveSteps(steps, direction, microseconds_per_step);
 }
 
 /*STEPPER FUNC*/
@@ -369,12 +366,22 @@ void command_callback(char *buffer)
     case (SET_EXTRUDER):
         token = strtok(NULL, " ");
 
-        stepper_deg = strtof(token, &previous);
+        stepper_target = strtof(token, &previous);
         stepper_speed = strtof(previous + 1, &current);
 
-        if (stepper_speed == 0.0) { stepper_speed = 10;}
+        if (stepper_speed == 0.0)
+        {
+            stepper_speed = 10;
+        }
 
-        // printf("Degrees %.3f and speed %.3f \n", stepper_deg, stepper_speed);
+        break;
+    case (CHANGE_KH_GAIN):
+        token = strtok(NULL, " ");
+        k_gamma = strtof(token, &previous);
+
+        PID_elbow.set_gains(kp, ki, kd, k_h, k_gamma);
+        PID_wrist_left.set_gains(kp_wrist, ki_wrist, kd_wrist, k_h, k_gamma);
+        PID_wrist_right.set_gains(kp_wrist, ki_wrist, kd_wrist, k_h, k_gamma);
         break;
     case (SET_VEL_MODE):
         token = strtok(NULL, " ");
@@ -505,8 +512,9 @@ int main()
 
     while (true)
     {
-        moveDegrees(stepper_deg, stepper_speed);
-        stepper_deg = 0;
+        rotateStepper(stepper_target, stepper_speed);
+        stepper_target = 0;
+
         gpio_put(PICO_DEFAULT_LED_PIN, 0);
         sleep_ms(100);
         gpio_put(PICO_DEFAULT_LED_PIN, 1);
